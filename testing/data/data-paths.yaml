@@ -1,0 +1,12 @@
+hand:
+  particles: data/hand.mrcs
+  ctf: data/ctf1.pkl
+toy:
+  particles: data/toy_projections.mrcs
+  ctf: data/ctf2.pkl
+  pose: data/toy_angles.pkl
+tilty:
+  particles: data/toy_projections.star
+  ctf: data/ctf2.pkl
+  pose: data/toy_angles.pkl
+  dose_per_tilt: 2.93

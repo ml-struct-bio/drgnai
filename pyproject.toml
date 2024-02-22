@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cryodrgn-ai"
+dynamic = ["version"]
+authors = [
+    { name="Axel Levy", email="axlevy@stanford.edu" },
+    { name="Michal Grzadkowski", email="mg2332@princeton.edu" },
+]
+
+description = "cryoDRGN3 heterogeneous reconstruction with amortized inference"
+readme = "README.md"
+requires-python = ">=3.7,<3.11"
+
+dependencies = [
+    'cryodrgn',
+    'pillow<10',
+    'tensorboard',
+    'pytest',
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ml-struct-bio/cryodrgnai"
+
+[tool.setuptools_scm]
+version_file = "_version.py"
+
+[tool.setuptools]
+package-dir = {"cryodrgnai" = "src"}
+zip-safe = false
+
+[tool.setuptools.package-data]
+"cryodrgnai.templates" = ["*.ipynb"]
+
+[project.scripts]
+drgnai = "cryodrgnai.command_line:run_cryodrgn_ai"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-rA"
+testpaths = ["testing"]
+
+[tool.pyright]
+exclude = ["build/**"]

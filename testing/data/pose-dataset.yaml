@@ -1,0 +1,3 @@
+particles: ../../data/toy_projections.mrcs
+ctf: ../../data/ctf2.pkl
+pose: ../../data/toy_angles.pkl
