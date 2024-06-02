@@ -1,7 +1,7 @@
-# :dragon::robot: DRGN-AI: _Ab initio_ cryo-EM and cryo-ET heterogeneous reconstruction #
+# :dragon::robot: DRGN-AI: _Ab initio_ heterogeneous cryo-EM reconstruction #
 
-DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous single-particle cryo-EM and cryo-ET subtomogram reconstruction. The
-method leverages the expressive representation capacity of neural models with a novel joint inference procedure of poses and heterogeneous conformational states to enable single-shot reconstruction of noisy, large cryo-EM datasets. 
+DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction. The
+method leverages the expressive representation capacity of neural models and implements a two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot reconstruction of noisy, large cryo-EM datasets. 
 
 ## Documentation ##
 
@@ -62,18 +62,15 @@ commonly used within a script submitted to a job scheduling system on a high-per
 
 ### Setup ###
 
-Before running an experiment, you must first create a directory for your experiment's output, as well as a configuration
-file governing how the experiment will be run. You can complete these two steps manually; for users unfamiliar with
-using terminals or with editing files using tools like `vim` or `nano` we recommend using the `drgnai setup` tool 
-instead. For example,
+First, use the `drgnai setup` tool to create an output directory and a configuration file for DRGN-AI. 
 
 ```
-drgnai setup out-dir --particles /my_data/particles.mrcs --ctf /my_data/ctf.pkl \
+drgnai setup your_outdir --particles /my_data/particles.mrcs --ctf /my_data/ctf.pkl \
                      --capture-setup spa --conf-estimation autodecoder \
                      --pose-estimation abinit --reconstruction-type het                               
 ```
 
-This command will create an output directory called `out-dir/` and a configuration file `out-dir/configs.yaml`:
+This command will create an output directory called `your_outdir` and a configuration file `your_outdir/configs.yaml`:
 
 ```yaml
 particles: /my_data/particles.mrcs
@@ -85,24 +82,27 @@ quick_config:
   reconstruction_type: het
 ```
 
-
 ### Reconstruction and analysis ###
 
-After setup is complete, run the experiment using `drgnai train out-dir`. You can also perform further
-analyses on a particular training epoch instead of the last epoch, which is analyzed by default at the end of `train`:
+After setup is complete, run the experiment using `drgnai train your_outdir`. 
 
 ```
-drgnai train out-dir
-drgnai analyze out-dir --epoch 25
+drgnai train your_outdir
 ```
 
-`drgnai` will save the outputs of training under `out-dir/out/`; outputs of each analysis will be stored under 
-`out-dir/out/analysis_<epoch>/`.
+`drgnai` will save the outputs of training under `your_outdir/out/`. By default, at the end of training, `drgnai` will analyze the results from the last epoch. 
 
+
+You can also run analyses on a particular training epoch instead of the last epoch. Outputs of each analysis will be stored under 
+`your_outdir/out/analysis_<epoch>/`.
+
+```
+drgnai analyze your_outdir --epoch 25
+```
 
 ### Monitoring running experiments ###
 
-The progress of model training can be tracked using the `out-dir/out/training.log` file.
+The progress of model training can be tracked using the `your_outdir/out/training.log` file.
 
 The training step can also be monitored while it is running using Tensorboard, which is installed as part of DRGN-AI,
 by following these steps:
@@ -114,9 +114,9 @@ output directory and 6565 is an arbitrary port number.
 3. Navigate to localhost:6565 in your local browser to access the tensorboard interface.
 
 
-## Configuration ##
+## Advanced Configuration ##
 
-The behaviour of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
+The behavior of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
 experiment. However, only the most important parameters are available through this interface:
 
  - `--capture-setup` “spa” for single-particle analysis (default) or “et” for electron tomography
@@ -126,7 +126,7 @@ experiment. However, only the most important parameters are available through th
  - `--conf-estimation` “autodecoder” (default), “encoder” or “refine” to refine conformations by
                        gradient descent (you must then define initial_conf) — not used in homogeneous reconstruction
 
-Note that each argument can be specified using a non-ambiguous prefix, e.g.
+Note that each argument can be specified using a non-ambiguous prefix as a shortcut 😃, e.g.
 ```
 drgnai setup out-dir --dataset 50S_128 --cap spa --conf autodecoder \
                      --pose-estim abinit --reconstr het
@@ -139,7 +139,20 @@ is run. For a full overview of how to configure the parameters used in the DRGN-
 
 ## Reference ##
 
-Coming soon...
+```
+@article{drgnai,
+  title    = "Revealing biomolecular structure and motion with neural ab initio
+              {cryo-EM} reconstruction",
+  author   = "Levy, Axel and Grzadkowski, Michal and Poitevin, Frederic and
+              Vallese, Francesca and Clarke, Oliver B and Wetzstein, Gordon and
+              Zhong, Ellen D",
+  journal  = "bioRxiv",
+  pages    = "2024.05.30.596729",
+  month    =  jun,
+  year     =  2024,
+  language = "en"
+}
+```
 
 ## Previous versions ##
 
@@ -147,11 +160,11 @@ Below are major past releases of cryoDRGN with the features introduced in each:
 
 ### Version 0.2.0-beta ###
 
- - creating a new `drgnai` command line interface for easier use of the package
- - simplifying how configuration files are used
- - new version of the README, creating gitbook documentation
+ - Creating a new `drgnai` command line interface for easier use of the package
+ - Simplifying how configuration files are used
+ - New version of the README, creating gitbook documentation
 
 
 ## Contact ##
 
-For any feedback, questions, or bugs, please file a Github issue or contact Ellen Zhong (zhonge [at] princeton.edu).
+For any feedback, questions, or bugs, please file a Github issue or reach out to the authors.
