@@ -12,17 +12,19 @@ provided below.
 
 ## New in Version 1.0.0 ##
 
- - `--load` in `drgnai train` for auto-restart of experiments
- - adding `--datadir` to `drgnai setup`
- - renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
+ - Add `--datadir` to `drgnai setup`
+ - Remove `outdir` from the `config.yaml`
+ - Allow arbitrary config parameters to be passed to `drgnai setup`
+ - Add `--load` in `drgnai train` for auto-restart of experiments
+ - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
    instead of just `out_old/`
 
 
 ### New in Version 0.2.2-beta ###
 
  - `drgnai filter` interface for interactive filtering of particles
- - support for `$DRGNAI_DATASETS` dataset catalogue
- - cleaner tracking of configuration specifications
+ - Support for `$DRGNAI_DATASETS` dataset catalogue
+ - Cleaner tracking of configuration specifications
 
 
 ## Installation ##
@@ -157,6 +159,9 @@ is run. For a full overview of how to configure the parameters used in the DRGN-
 ## Previous versions ##
 
 Below are major past releases of cryoDRGN with the features introduced in each:
+
+### Version 1.0.1 ###
+
 
 ### Version 0.2.0-beta ###
 
