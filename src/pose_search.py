@@ -196,7 +196,7 @@ def compute_err(
         rot = tilting_func(rot)
         n_tilts = rot.shape[-3]
         rot = rot.reshape(-1, 3, 3)  # [nq * ip * n_tilts, 3, 3]
-    batch_size = ctf_i.shape[0] // n_tilts
+    batch_size = torch.div(ctf_i.shape[0], n_tilts, rounding_mode='trunc')
 
     x = masked_coords @ rot.to(device)
     with torch.no_grad():
@@ -318,9 +318,10 @@ def keep_matrix(
     keep_idx = torch.empty(
         len(shape), batch_size * max_poses, dtype=torch.long, device=loss.device
     )
-    keep_idx[0] = flat_idx // shape[2]
+    keep_idx[0] = torch.div(flat_idx, shape[2], rounding_mode='trunc')
     keep_idx[2] = flat_idx % shape[2]
     keep_idx[1] = best_trans_idx[keep_idx[0], keep_idx[2]]
+
     return keep_idx
 
 
@@ -373,7 +374,7 @@ def opt_trans(
         current_radius
 ):
     """
-    model: CryoDRGN3
+    model: DrgnAI
     y_gt: [(sym_loss_factor * ) batch_size, D, D]
     y_pred: [(sym_loss_factor * ) batch_size, n_pts]
     lattice: Lattice
@@ -430,7 +431,7 @@ def opt_theta_trans(
         trans_search_factor=None
 ):
     """
-    model: CryoDRGN3
+    model: DrgnAI
     images: [batch_size(, n_tilts), D, D]
     lattice: Lattice
     ps_params: dict
@@ -567,7 +568,7 @@ def opt_theta_trans(
         nkeptposes = ps_params['nkeptposes'] if iter_ < ps_params['niter'] else 1
 
         keep_bn, keep_t, keep_q = keep_matrix(loss, batch_size, nkeptposes).cpu()  # B x (self.Nkeptposes*32)
-        keep_b = keep_bn * batch_size // loss.shape[0]
+        keep_b = keep_bn * torch.div(batch_size, loss.shape[0], rounding_mode='trunc')
         assert (
                 len(keep_b) == batch_size * nkeptposes
         ), f"{len(keep_b)} != {batch_size} x {nkeptposes} at iter {iter_}"

@@ -9,8 +9,6 @@ from scipy.spatial.transform import Rotation
 
 import torch
 from torch.utils import data
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import BatchSampler, RandomSampler
 
 from . import fft
 from . import starfile
@@ -639,21 +637,3 @@ class _DataShufflerIterator:
                 in_dict['t'] = torch.from_numpy(trans).float().reshape(-1, 2)  # batch_size, 2
 
         return in_dict
-
-
-def make_dataloader(
-    data: ImageDataset, *, batch_size: int, num_workers: int = 0, shuffler_size: int = 0
-):
-    if shuffler_size > 0:
-        assert data.lazy, "Only enable a data shuffler for lazy loading"
-        return DataShuffler(data, batch_size=batch_size, buffer_size=shuffler_size)
-    else:
-        return DataLoader(
-            data,
-            num_workers=num_workers,
-            sampler=BatchSampler(
-                RandomSampler(data), batch_size=batch_size, drop_last=False
-            ),
-            batch_size=None,
-            multiprocessing_context="spawn" if num_workers > 0 else None,
-        )

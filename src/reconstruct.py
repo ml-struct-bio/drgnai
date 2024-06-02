@@ -3,15 +3,18 @@
 import os
 import shutil
 import pickle
+import yaml
 import logging
-
 from datetime import datetime as dt
 import numpy as np
 import time
+import re
+from typing_extensions import Any
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from . import mrc
@@ -22,9 +25,10 @@ from . import ctf
 from . import summary
 
 from .configuration import TrainingConfigurations
+from .analyze import ModelAnalyzer
 from .lattice import Lattice
 from .losses import kl_divergence_conf,  l1_regularizer, l2_frequency_bias
-from .models import CryoDRGN3, MyDataParallel
+from .models import DrgnAI, MyDataParallel
 from .mask import CircularMask, FrequencyMarchingMask
 
 
@@ -61,26 +65,130 @@ class ModelTrainer:
         'to_cpu'
         ]
 
-    def __init__(self, config_vals: dict) -> None:
+    def make_dataloader(self, batch_size: int) -> DataLoader:
+        if self.configs.shuffle:
+            generator = torch.Generator()
+            generator = generator.manual_seed(self.configs.seed)
+            sampler = RandomSampler(self.data, generator=generator)
+        else:
+            sampler = SequentialSampler(self.data)
+
+        if self.configs.fast_dataloading:
+            if self.configs.shuffler_size > 0 and self.configs.shuffle:
+                assert self.data.lazy, (
+                    "Fast data shuffler is only enabled for lazy loading!")
+
+                data_loader = dataset_fast.DataShuffler(
+                    self.data, batch_size=batch_size,
+                    buffer_size=self.configs.shuffler_size
+                )
+
+            else:
+                # see https://github.com/zhonge/cryodrgn/pull/221#discussion_r1120711123
+                # for discussion of why we use BatchSampler, etc.
+                data_loader = DataLoader(
+                    self.data, batch_size=None,
+                    sampler=BatchSampler(
+                        sampler, batch_size=batch_size, drop_last=False),
+                    num_workers=self.configs.num_workers,
+                    multiprocessing_context=("spawn" if self.configs.num_workers > 0
+                                             else None),
+                )
+        else:
+            data_loader = DataLoader(
+                self.data, batch_size=batch_size, sampler=sampler,
+                num_workers=self.configs.num_workers,
+                multiprocessing_context=("spawn" if self.configs.num_workers > 0
+                                         else None),
+            )
+
+        return data_loader
+
+    @classmethod
+    def load_configs(cls, outdir: str) -> dict[str, Any]:
+        """Get the configurations from different versions of output folders."""
+        train_configs = dict()
+
+        if not os.path.isdir(outdir):
+            raise ValueError(f"Output folder {outdir} does not exist!")
+
+        if os.path.exists(os.path.join(outdir, 'drgnai-configs.yaml')):
+            with open(os.path.join(outdir, 'drgnai-configs.yaml'), 'r') as f:
+                train_configs = yaml.safe_load(f)
+
+        elif os.path.exists(os.path.join(outdir, 'train-configs.yaml')):
+            with open(os.path.join(outdir, 'train-configs.yaml'), 'r') as f:
+                train_configs = {'training': yaml.safe_load(f)}
+
+        return train_configs
+
+    def __init__(self,
+                 outdir: str, config_vals: dict[str, Any], load: bool = False) -> None:
         self.logger = logging.getLogger(__name__)
-        self.configs = TrainingConfigurations(config_vals)
 
-        # output directory
-        if os.path.exists(self.configs.outdir) and os.listdir(self.configs.outdir):
-            self.logger.warning("Output directory already exists."
-                                "Renaming the old one.")
+        self.outdir = os.path.join(outdir, 'out')
+        if load:
+            if not os.path.isdir(self.outdir):
+                raise ValueError(f"Cannot use --load with directory `{outdir}` which "
+                                 f"has no default output folder `{self.outdir}`!")
 
-            newdir = self.configs.outdir + '_old'
-            if os.path.exists(newdir):
-                self.logger.warning("Must delete the previously "
-                                    "saved old output.")
-                shutil.rmtree(newdir)
+            last_epoch = ModelAnalyzer.get_last_cached_epoch(self.outdir)
+            if last_epoch == -2:
+                raise ValueError(
+                    f"Cannot perform any analyses for output directory `{self.outdir}` "
+                    f"which does not contain any saved drngai training checkpoints!"
+                )
 
-            os.rename(self.configs.outdir, newdir)
+            config_vals['load'] = os.path.join(self.outdir, f"weights.{last_epoch}.pkl")
 
-        os.makedirs(self.configs.outdir, exist_ok=True)
+        self.configs = TrainingConfigurations(**config_vals)
+
+        # take care of existing output directories
+        if os.path.exists(self.outdir):
+            if ('load' in config_vals
+                    and os.path.dirname(config_vals['load']) == self.outdir):
+                self.logger.info("Reusing existing output directory "
+                                 "containing loaded checkpoint.")
+
+            else:
+                old_cfgs = self.load_configs(self.outdir)
+                if old_cfgs:
+                    old_cfgs = TrainingConfigurations(**old_cfgs['training'])
+
+                    outdirs = [p for p in os.listdir(outdir)
+                               if os.path.isdir(os.path.join(outdir, p))
+                               and re.match("^old-out_[0-9]+_", p)]
+
+                    if not outdirs:
+                        new_id = '000'
+                    else:
+                        new_id = str(max(int(os.path.basename(d).split('_')[1])
+                                         for d in outdirs) + 1).rjust(3, '0')
+
+                    train_lbl = (
+                        'refine' if old_cfgs.refine_gt_poses
+                        else 'fixed' if old_cfgs.use_gt_poses
+                        else 'abinit'
+                        )
+                    train_lbl += (
+                        '-homo' if old_cfgs.z_dim == 0
+                        else f'-het{old_cfgs.z_dim}'
+                    )
+
+                    newdir = os.path.join(outdir, f"old-out_{new_id}_{train_lbl}")
+                    shutil.copytree(self.outdir, newdir)
+                    self.logger.warning(
+                        f"Output directory `out/` already exists here!."
+                        f"Renaming the old one to `{os.path.basename(newdir)}`."
+                    )
+
+                elif os.listdir(self.outdir):
+                    self.logger.info("Using existing output directory which does "
+                                     "not yet contain any drgnai output!.")
+
+        os.makedirs(self.outdir, exist_ok=True)
         self.logger.addHandler(logging.FileHandler(
-            os.path.join(self.configs.outdir, "training.log")))
+            os.path.join(self.outdir, "training.log")))
 
         n_gpus = torch.cuda.device_count()
         self.logger.info(f"Number of available gpus: {n_gpus}")
@@ -100,7 +208,7 @@ class ModelTrainer:
         self.logger.info(f"Use cuda {self.use_cuda}")
 
         # tensorboard writer
-        self.summaries_dir = os.path.join(self.configs.outdir, 'summaries')
+        self.summaries_dir = os.path.join(self.outdir, 'summaries')
         os.makedirs(self.summaries_dir, exist_ok=True)
         self.writer = SummaryWriter(self.summaries_dir)
         self.logger.info("Will write tensorboard summaries "
@@ -129,7 +237,7 @@ class ModelTrainer:
         if self.configs.fast_dataloading:
             if not self.configs.subtomogram_averaging:
                 self.data = dataset_fast.ImageDataset(
-                    self.configs.particles,
+                    self.configs.particles, ind=self.index,
                     max_threads=self.configs.max_threads,
                     lazy=True, poses_gt_pkl=self.configs.pose,
                     resolution_input=self.configs.resolution_encoder,
@@ -140,7 +248,8 @@ class ModelTrainer:
 
             else:
                 self.data = dataset_fast.TiltSeriesData(
-                    self.configs.particles, self.configs.n_tilts, self.configs.angle_per_tilt,
+                    self.configs.particles,
+                    self.configs.n_tilts, self.configs.angle_per_tilt,
                     window_r=self.configs.window_radius_gt_real,
                     datadir=self.configs.datadir,
                     max_threads=self.configs.max_threads,
@@ -281,7 +390,7 @@ class ModelTrainer:
         will_use_point_estimates = self.configs.epochs_sgd >= 1
         self.logger.info("Initializing model...")
 
-        self.model = CryoDRGN3(
+        self.model = DrgnAI(
             self.lattice,
             self.output_mask,
             self.n_particles_dataset,
@@ -300,7 +409,6 @@ class ModelTrainer:
             n_tilts_pose_search=self.configs.n_tilts_pose_search
             )
 
-        # TODO: auto-loading from last weights file if load=True?
         # initialization from a previous checkpoint
         if self.configs.load:
             self.logger.info(f"Loading checkpoint from {self.configs.load}")
@@ -399,42 +507,17 @@ class ModelTrainer:
                     checkpoint['optimizers_state_dict'][key])
 
         # dataloaders
-        if self.configs.fast_dataloading:
-            self.data_generator_pose_search = dataset_fast.make_dataloader(
-                self.data, batch_size=self.batch_size_hps,
-                num_workers=self.configs.num_workers,
-                shuffler_size=self.configs.shuffler_size
-                )
-            self.data_generator = dataset_fast.make_dataloader(
-                self.data, batch_size=self.batch_size_known_poses,
-                num_workers=self.configs.num_workers,
-                shuffler_size=self.configs.shuffler_size
-                )
-            self.data_generator_latent_optimization = dataset_fast\
-                .make_dataloader(self.data, batch_size=self.batch_size_sgd,
-                                 num_workers=self.configs.num_workers,
-                                 shuffler_size=self.configs.shuffler_size)
-
-        else:
-            self.data_generator_pose_search = DataLoader(
-                self.data, batch_size=self.batch_size_hps,
-                shuffle=self.configs.shuffle,
-                num_workers=self.configs.num_workers, drop_last=False
-                )
-            self.data_generator = DataLoader(
-                self.data, batch_size=self.batch_size_known_poses,
-                shuffle=self.configs.shuffle,
-                num_workers=self.configs.num_workers, drop_last=False
-                )
-            self.data_generator_latent_optimization = DataLoader(
-                self.data, batch_size=self.batch_size_sgd,
-                shuffle=self.configs.shuffle,
-                num_workers=self.configs.num_workers, drop_last=False
-                )
+        self.data_generator_pose_search = self.make_dataloader(
+            batch_size=self.batch_size_hps)
+        self.data_generator = self.make_dataloader(
+            batch_size=self.batch_size_known_poses)
+        self.data_generator_latent_optimization = self.make_dataloader(
+            batch_size=self.batch_size_sgd)
 
         # save configurations
-        self.configs.write(os.path.join(self.configs.outdir,
-                                        'train-configs.yaml'))
+        self.configs.write(os.path.join(self.outdir, 'drgnai-configs.yaml'),
+                           data_norm_mean=float(self.data.norm[0]),
+                           data_norm_std=float(self.data.norm[1]))
 
         epsilon = 1e-8
         # booleans
@@ -461,9 +544,11 @@ class ModelTrainer:
         self.use_l2_smoothness_regularizer = (
                 self.configs.l2_smoothness_regularizer >= epsilon)
 
-        self.num_epochs = self.epochs_pose_search + self.configs.epochs_sgd
         if self.configs.load:
-            self.num_epochs += self.start_epoch
+            self.num_epochs = self.start_epoch + self.configs.epochs_sgd
+            self.num_epochs += max(self.epochs_pose_search - self.start_epoch, 0)
+        else:
+            self.num_epochs = self.epochs_pose_search + self.configs.epochs_sgd
 
         self.n_particles_pretrain = (self.configs.n_imgs_pretrain
                                      if self.configs.n_imgs_pretrain >= 0
@@ -625,6 +710,7 @@ class ModelTrainer:
                     (self.configs.log_heavy_interval
                      and epoch % self.configs.log_heavy_interval == 0)
                     or self.is_in_pose_search_step or self.pretraining
+                    or epoch == self.num_epochs - 1
                     )
             self.log_latents = will_make_summary
 
@@ -1082,7 +1168,7 @@ class ModelTrainer:
 
     def save_latents(self):
         """Write model's latent variables to file."""
-        out_pose = os.path.join(self.configs.outdir, f"pose.{self.epoch}.pkl")
+        out_pose = os.path.join(self.outdir, f"pose.{self.epoch}.pkl")
 
         if self.configs.no_trans:
             with open(out_pose, 'wb') as f:
@@ -1092,15 +1178,13 @@ class ModelTrainer:
                 pickle.dump((self.predicted_rots, self.predicted_trans), f)
 
         if self.configs.z_dim > 0:
-            out_conf = os.path.join(self.configs.outdir,
-                                    f"conf.{self.epoch}.pkl")
+            out_conf = os.path.join(self.outdir, f"conf.{self.epoch}.pkl")
             with open(out_conf, 'wb') as f:
                 pickle.dump(self.predicted_conf, f)
 
     def save_volume(self):
         """Write reconstructed volume to file."""
-        out_mrc = os.path.join(self.configs.outdir,
-                               f"reconstruct.{self.epoch}.mrc")
+        out_mrc = os.path.join(self.outdir, f"reconstruct.{self.epoch}.mrc")
 
         self.model.hypervolume.eval()
         if hasattr(self.model, 'conf_cnn'):
@@ -1124,8 +1208,7 @@ class ModelTrainer:
     # TODO: weights -> model and reconstruct -> volume for output labels?
     def save_model(self):
         """Write model state to file."""
-        out_weights = os.path.join(self.configs.outdir,
-                                   f"weights.{self.epoch}.pkl")
+        out_weights = os.path.join(self.outdir, f"weights.{self.epoch}.pkl")
 
         optimizers_state_dict = {}
         for key in self.optimizers.keys():

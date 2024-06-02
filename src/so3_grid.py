@@ -143,7 +143,8 @@ def get_base_ind(ind, base):
     """
     n_p = 6 * 2 ** base
     psi_i = ind % n_p
-    theta_i = ind // n_p
+    theta_i = torch.div(ind, n_p, rounding_mode='trunc')
+
     return np.stack((theta_i, psi_i), axis=1)
 
 

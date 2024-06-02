@@ -10,3 +10,11 @@ tilty:
   ctf: data/ctf2.pkl
   pose: data/toy_angles.pkl
   dose_per_tilt: 2.93
+  angle_per_tilt: 3.0
+sta:
+  particles: data/sta_testing_bin8.star
+  ctf: data/sta_ctf.pkl
+  pose: data/sta_pose.pkl
+  datadir: data
+  dose_per_tilt: 2.93
+  angle_per_tilt: 3.0

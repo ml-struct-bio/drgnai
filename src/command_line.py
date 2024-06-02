@@ -3,6 +3,11 @@
 import argparse
 import os
 import yaml
+import difflib
+
+CONFIG_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                          'configs')
+os.environ["NUMEXPR_MAX_THREADS"] = "1"
 
 from cryodrgn import utils
 from .reconstruct import ModelTrainer
@@ -10,9 +15,6 @@ from .analyze import ModelAnalyzer
 from .configuration import AnalysisConfigurations, TrainingConfigurations
 from .visualization import interactive_filtering
 from .utils import checksum
-
-CONFIG_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                          'configs')
 
 
 def run_cryodrgn_ai() -> None:
@@ -34,10 +36,20 @@ def run_cryodrgn_ai() -> None:
                               help="which dataset to run the experiment on")
 
     setup_parser.add_argument(
-        '--particles', help="path to the picked particles (.mrcs/.star /.txt)")
-    setup_parser.add_argument('--ctf',
-                              help="path to the CTF parameters (.pkl)")
-    setup_parser.add_argument('--pose', help="path to the poses (.pkl)")
+        '--particles',
+        type=os.path.abspath,
+        help="path to the picked particles (.mrcs/.star /.txt)"
+    )
+    setup_parser.add_argument(
+        '--ctf', type=os.path.abspath, help="path to the CTF parameters (.pkl)")
+    setup_parser.add_argument(
+        '--pose', type=os.path.abspath, help="path to the poses (.pkl)")
+    setup_parser.add_argument(
+        "--datadir",
+        type=os.path.abspath,
+        help="Path prefix to particle stack if loading relative paths "
+             "from a .star or .cs file",
+    )
 
     setup_parser.add_argument(
         '--capture-setup', default='spa', choices=['spa', 'et'],
@@ -71,6 +83,12 @@ def run_cryodrgn_ai() -> None:
         dest='conf_estim'
         )
 
+    setup_parser.add_argument(
+        '--cfgs', '-c', nargs='+',
+        help="additional configuration parameters to pass to the model "
+             "in the form of 'CFG_KEY1=CFG_VAL1' 'CFG_KEY2=CFG_VAL2' ... "
+    )
+
     train_parser = subparsers.add_parser(
         'train', description="Train the experiment.", parents=[parent_parser])
     train_parser.set_defaults(func=train_experiment)
@@ -78,6 +96,10 @@ def run_cryodrgn_ai() -> None:
     train_parser.add_argument(
         '--no-analysis', action='store_true',
         help="just do the training stage",
+        )
+    train_parser.add_argument(
+        '--load', action='store_true',
+        help="start from last cached training epoch",
         )
 
     analyze_parser = subparsers.add_parser(
@@ -157,17 +179,22 @@ def setup_experiment(args) -> dict:
     if os.path.exists(configs_file):
         with open(configs_file, 'r') as f:
             configs = yaml.safe_load(f)
-
-        if 'dataset' not in configs and hasattr(args, 'dataset'):
-            configs['dataset'] = args.dataset
-
     else:
-        configs = {'dataset': args.dataset, 'particles': args.particles,
+        configs = {'particles': args.particles,
                    'ctf': args.ctf, 'pose': args.pose,
                    'quick_config': {'capture_setup': args.capture_setup,
                                     'reconstruction_type': args.rcnstr_type,
                                     'pose_estimation': args.pose_estim,
                                     'conf_estimation': args.conf_estim}}
+
+    if hasattr(args, 'dataset') and args.dataset is not None:
+        configs['dataset'] = args.dataset
+    if hasattr(args, 'datadir') and args.datadir is not None:
+        configs['datadir'] = args.datadir
+
+    # parse the additional configuration parameters
+    if hasattr(args, 'cfgs') and args.cfgs is not None:
+        configs = {**configs, **TrainingConfigurations.parse_cfg_keys(args.cfgs)}
 
     # turn anything that looks like a relative path into an absolute path
     for k in list(configs):
@@ -248,10 +275,21 @@ def setup_experiment(args) -> dict:
     # create the final configurations and test that they are valid before
     # saving them to file
     configs = {**configs, **paths}
-    if "outdir" not in configs:
-        configs['outdir'] = os.path.join(args.outdir, 'out')
-    _ = TrainingConfigurations(configs)
+    field_names = {fld.name for fld in TrainingConfigurations.fields()}
 
+    for cfg_key in configs:
+        if cfg_key not in field_names:
+            close_keys = difflib.get_close_matches(cfg_key, list(field_names))
+
+            if close_keys:
+                close_str = f"\nDid you mean one of:\n{', '.join(close_keys)}"
+            else:
+                close_str = ""
+
+            raise ValueError(f"Given config parameter `{cfg_key}` is not a "
+                             f"valid configuration parameter!{close_str}")
+
+    _ = TrainingConfigurations(**configs)
     os.makedirs(os.path.join(args.outdir, 'out'), exist_ok=True)
     with open(configs_file, 'w') as f:
         yaml.dump(configs, f, sort_keys=False)
@@ -264,7 +302,7 @@ def train_experiment(args) -> None:
 
     configs = setup_experiment(args)
     utils._verbose = False
-    trainer = ModelTrainer(configs)
+    trainer = ModelTrainer(args.outdir, configs, args.load)
     trainer.train()
 
     if not args.no_analysis:
@@ -274,21 +312,15 @@ def train_experiment(args) -> None:
 def analyze_experiment(args) -> None:
     """drgnai analyze: analyze, interpret, and visualize the trained model"""
 
-    train_configs_file = os.path.join(args.outdir, 'out', 'train-configs.yaml')
-    if not os.path.exists(train_configs_file):
-        raise ValueError("Missing train-configs.yaml file "
-                         "in given output folder!")
-
-    with open(train_configs_file, 'r') as f:
-        train_configs = yaml.safe_load(f)
-
-    train_configs['outdir'] = os.path.join(args.outdir, 'out')
-    anlz_configs = {par: (getattr(args, par) if hasattr(args, par)
-                          else AnalysisConfigurations.defaults[par])
-                    for par in AnalysisConfigurations.parameters}
+    train_configs = ModelTrainer.load_configs(os.path.join(args.outdir, 'out'))
+    anlz_configs = {
+        fld.name: (getattr(args, fld.name) if hasattr(args, fld.name) else fld.default)
+        for fld in AnalysisConfigurations.fields() if fld.name != 'quick_configs'
+        }
 
     utils._verbose = False
-    analyzer = ModelAnalyzer(anlz_configs, train_configs)
+    analyzer = ModelAnalyzer(os.path.join(args.outdir, 'out'),
+                             anlz_configs, train_configs)
     analyzer.analyze()
 
 
@@ -302,7 +334,7 @@ def test_package(args) -> None:
     """drgnai test: check if package was installed correctly"""
 
     utils._verbose = False
-    trainer = ModelTrainer({'test_installation': True})
+    trainer = ModelTrainer(outdir="", config_vals={'test_installation': True})
     trainer.train()
 
 

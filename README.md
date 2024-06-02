@@ -9,7 +9,16 @@ The latest detailed documentation for DRGN-AI is available [on gitbook](https://
 including an overview and walkthrough of DRGN-AI installation, training and analysis. A brief quick start is
 provided below.
 
-## New in Version 0.2.2-beta ##
+
+## New in Version 1.0.0 ##
+
+ - `--load` in `drgnai train` for auto-restart of experiments
+ - adding `--datadir` to `drgnai setup`
+ - renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
+   instead of just `out_old/`
+
+
+### New in Version 0.2.2-beta ###
 
  - `drgnai filter` interface for interactive filtering of particles
  - support for `$DRGNAI_DATASETS` dataset catalogue
@@ -23,12 +32,9 @@ the git repository, and then use `pip` to install the package from the source co
 
     (base) $ conda create --name drgnai python=3.9
     (base) $ conda activate drgnai
-    (drgnai) $ git clone git@github.com:ml-struct-bio/drgnai.git --branch 1.0.0-beta --single-branch
+    (drgnai) $ git clone git@github.com:ml-struct-bio/drgnai.git
     (drgnai) $ cd drgnai/
     (drgnai) $ pip install . 
-
-You can also install the latest development version of DRGN-AI using
-`git clone git@github.com:ml-struct-bio/drgnai.git` instead of the above `git clone` command.
 
 To confirm that the package was installed successfully, use `drgnai test`:
 
@@ -67,7 +73,7 @@ drgnai setup out-dir --particles /my_data/particles.mrcs --ctf /my_data/ctf.pkl 
                      --pose-estimation abinit --reconstruction-type het                               
 ```
 
-This command will create an output directory called `out-dir` and a configuration file `out-dir/configs.yaml`:
+This command will create an output directory called `out-dir/` and a configuration file `out-dir/configs.yaml`:
 
 ```yaml
 particles: /my_data/particles.mrcs
@@ -90,7 +96,7 @@ drgnai train out-dir
 drgnai analyze out-dir --epoch 25
 ```
 
-`drgnai` will save the outputs of training under `out-dir/out`; outputs of each analysis will be stored under 
+`drgnai` will save the outputs of training under `out-dir/out/`; outputs of each analysis will be stored under 
 `out-dir/out/analysis_<epoch>/`.
 
 
@@ -122,7 +128,7 @@ experiment. However, only the most important parameters are available through th
 
 Note that each argument can be specified using a non-ambiguous prefix, e.g.
 ```
-drgnai setup out-dir --dataset 50S_128 --cap spi --conf autodecoder \
+drgnai setup out-dir --dataset 50S_128 --cap spa --conf autodecoder \
                      --pose-estim abinit --reconstr het
 ```
 

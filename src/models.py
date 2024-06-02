@@ -22,7 +22,7 @@ class MyDataParallel(nn.DataParallel):
             return getattr(self.module, name)
 
 
-class CryoDRGN3(nn.Module):
+class DrgnAI(nn.Module):
     def __init__(self, lattice, output_mask, n_particles_dataset, n_tilts_dataset, cnn_params, conf_regressor_params,
                  hyper_volume_params, resolution_encoder=64, no_trans=False,
                  use_gt_poses=False, use_gt_trans=False, will_use_point_estimates=False,
@@ -70,7 +70,7 @@ class CryoDRGN3(nn.Module):
         pretrain_with_gt_poses: bool
         n_tilts_pose_search: int
         """
-        super(CryoDRGN3, self).__init__()
+        super(DrgnAI, self).__init__()
         self.lattice = lattice
         self.D = lattice.D
         self.output_mask = output_mask
@@ -392,8 +392,8 @@ class CryoDRGN3(nn.Module):
         norm: (mean, std)
         zval: [z_dim]
         """
-        return eval_volume_method(self.hypervolume, self.lattice, self.z_dim, norm, zval=zval,
-                                  radius=self.output_mask.current_radius)
+        return eval_volume_method(self.hypervolume, self.lattice, self.z_dim, norm,
+                                  zval=zval, radius=self.output_mask.current_radius)
 
     @classmethod
     def load(cls, config, weights=None, device=None):
@@ -406,7 +406,7 @@ class CryoDRGN3(nn.Module):
             device: torch.device object
 
         Returns:
-            CryoDRGN3 instance, Lattice instance
+            DrgnAI instance, Lattice instance
         """
         pass
 
@@ -874,7 +874,9 @@ class HyperVolume(nn.Module):
             out_shape = (batch_size_in, n_tilts, n_pts)
         else:
             out_shape = (batch_size_in, n_pts)
-        return self.mlp(x).reshape(*out_shape)
+
+        y_pred = self.mlp(x)
+        return y_pred.reshape(*out_shape)
 
     def random_fourier_encoding(self, x):
         """

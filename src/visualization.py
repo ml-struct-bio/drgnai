@@ -22,11 +22,20 @@ from cryodrgn import utils
 def interactive_filtering(workdir: str, epoch: int, kmeans: int,
                           plot_inds: str) -> None:
 
-    train_configs_file = os.path.join(workdir, 'out', 'train-configs.yaml')
-    if os.path.exists(train_configs_file):
+    # accounting for v0.2.3 and v1.x saved configuration formats
+    if os.path.exists(os.path.join(workdir, 'out', 'drgnai-configs.yaml')):
+        train_configs_file = os.path.join(workdir, 'out', 'drgnai-configs.yaml')
+
+        with open(train_configs_file, 'r') as f:
+            train_configs = yaml.safe_load(f)['training']
+
+    elif os.path.exists(os.path.join(workdir, 'out', 'train-configs.yaml')):
+        train_configs_file = os.path.join(workdir, 'out', 'train-configs.yaml')
+
         with open(train_configs_file, 'r') as f:
             train_configs = yaml.safe_load(f)
 
+    # older configuration formats
     else:
         path_configs_file = os.path.join(workdir, 'data_paths.yaml')
         train_configs_file = os.path.join(workdir, 'default-configs.yaml')

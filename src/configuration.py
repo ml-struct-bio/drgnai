@@ -4,161 +4,296 @@ import os
 import sys
 import yaml
 import numpy as np
+import inspect
 from collections import OrderedDict
 from abc import ABC
+from dataclasses import dataclass, field, fields, MISSING, asdict, Field
+from typing import Any, ClassVar
+import difflib
+
 
 CONFIG_DIR = os.path.join(
     os.path.abspath(os.path.dirname(os.path.dirname(__file__))), 'configs')
 
 
+@dataclass
 class _BaseConfigurations(ABC):
     """Base class for sets of model configuration parameters."""
 
     # a parameter belongs to this set if and only if it has a default value
     # defined in this dictionary, ordering makes e.g. printing easier for user
-    defaults = OrderedDict()
+    verbose: int = 0
+    seed: int = None
+    quick_config: OrderedDict = field(default_factory=OrderedDict)
+    test_installation: bool = False
 
-    @classmethod
-    @property
-    def parameters(cls) -> list:
-        return list(cls.defaults.keys())
+    quick_configs: ClassVar[dict[str, dict[str, Any]]] = OrderedDict()
 
-    def __init__(self, config_vals: dict) -> None:
-        for key in config_vals:
-            if key not in self.defaults:
-                raise ValueError("Unrecognized configuration "
-                                 f"parameter `{key}`!")
+    def __post_init__(self) -> None:
+        for this_field in fields(self):
+            assert (
+                this_field.name == "quick_config" or this_field.default is not MISSING
+            ), (
+                f"`{self.__class__.__name__}` class has no default value defined "
+                f"for parameter `{this_field.name}`"
+            )
 
-        # an attribute is created for every entry in the defaults dictionary
-        for key, value in self.defaults.items():
-            if key in config_vals:
-                setattr(self, key, config_vals[key])
+        if self.test_installation:
+            print("Installation was successful!")
+            sys.exit()
 
-            # if not in given parameters, use defaults
-            else:
-                setattr(self, key, value)
+        if not isinstance(self.verbose, int) or self.verbose < 0:
+            raise ValueError(
+                f"Given verbosity `{self.verbose}` is not a positive integer!"
+            )
+
+        if self.seed is None:
+            self.seed = np.random.randint(0, 10000)
+
+        if not isinstance(self.seed, int):
+            raise ValueError(
+                "Configuration `seed` must be given as an integer, "
+                f"given `{self.seed}` instead!"
+            )
+
+        # process the quick_config parameter
+        if self.quick_config is not MISSING:
+            for cfg_k, cfg_val in self.quick_config.items():
+                if cfg_k not in self.quick_configs:
+                    raise ValueError(
+                        f"Unrecognized quick_config shortcut field `{cfg_k}`!")
+
+                if cfg_val not in self.quick_configs[cfg_k]:
+                    raise ValueError(
+                        f"Unrecognized quick_config shortcut value `{cfg_val}` "
+                        f"for field `{cfg_k}`, "
+                        f"choose from: {','.join(list(self.quick_configs[cfg_k]))}"
+                    )
+
+                for par_k, par_value in self.quick_configs[cfg_k][cfg_val].items():
+                    if par_k not in self:
+                        raise ValueError(
+                            f"Unrecognized configuration parameter `{par_k}` found "
+                            f"in this classes quick_config entry `{cfg_k}:{cfg_val}`!"
+                        )
+
+                    # parameters given elsewhere in configs have priority
+                    if getattr(self, par_k) == getattr(type(self), par_k):
+                        setattr(self, par_k, par_value)
 
     def __iter__(self):
-        return iter((par, getattr(self, par)) for par in self.parameters)
+        return iter(asdict(self).items())
 
     def __str__(self):
-        return '\n'.join([f"{par}{str(val):>20}" for par, val in self])
+        return "\n".join([f"{par}{str(val):>20}" for par, val in self])
 
-    def write(self, fl: str) -> None:
+    def __contains__(self, val) -> bool:
+        return val in {k for k, _ in self}
+
+    def write(self, fl: str, **add_cfgs) -> None:
         """Saving configurations to file using the original order."""
+        with open(fl, "w") as f:
+            yaml.dump(dict(training=asdict(self), **add_cfgs), f,
+                      default_flow_style=False, sort_keys=False)
 
-        with open(fl, 'w') as f:
-            yaml.dump(dict(self), f, default_flow_style=False, sort_keys=False)
+    @classmethod
+    def fields(cls) -> list[Field]:
+        members = inspect.getmembers(cls)
+        return list(list(filter(
+            lambda x: x[0] == '__dataclass_fields__', members))[0][1].values())
 
+    @classmethod
+    def parse_cfg_keys(cls, cfg_keys: list[str]) -> dict[str, Any]:
+        cfgs = dict()
 
+        for cfg_str in cfg_keys:
+            if cfg_str.count("=") != 1:
+                raise ValueError("--cfgs entries must have exactly one equals sign "
+                                 "and be in the form 'CFG_KEY=CFG_VAL'!")
+            cfg_key, cfg_val = cfg_str.split('=')
+
+            if cfg_val is None or cfg_val == 'None':
+                cfgs[cfg_key] = None
+
+            else:
+                for fld in cls.fields():
+                    if cfg_key == fld.name:
+                        if fld.type is str:
+                            cfgs[cfg_key] = str(cfg_val)
+                        else:
+                            cfgs[cfg_key] = fld.type(eval(cfg_val))
+
+                        # accounting for parameters like `ind` which can be paths
+                        # to files as well as integers
+                        if isinstance(cfgs[cfg_key], str) and cfgs[cfg_key].isnumeric():
+                            cfgs[cfg_key] = int(cfgs[cfg_key])
+
+                        break
+
+                else:
+                    close_keys = difflib.get_close_matches(
+                        cfg_key, [fld.name for fld in cls.fields()])
+
+                    if close_keys:
+                        close_str = f"\nDid you mean one of:\n{', '.join(close_keys)}"
+                    else:
+                        close_str = ""
+
+                    raise ValueError(f"--cfgs parameter `{cfg_key}` is not a "
+                                     f"valid configuration parameter!{close_str}")
+
+        return cfgs
+
+@dataclass
 class TrainingConfigurations(_BaseConfigurations):
 
-    defaults = OrderedDict({
-        'outdir': None, 'quick_config': None,
+    # dataset
+    particles: str = None
+    ctf: str = None
+    pose: str = None
+    dataset: str = None
+    server: str = None
+    datadir: str = None
+    ind: str = None
+    labels: str = None
+    relion31: bool = False
+    no_trans: bool = False
 
-        # dataset
-        'particles': None, 'ctf': None, 'pose': None, 'dataset': None,
-        'server': None, 'datadir': None, 'ind': None,
-        'labels': None, 'relion31': False, 'no_trans': False,
+    # initialization
+    use_gt_poses: bool = False
+    refine_gt_poses: bool = False
+    use_gt_trans: bool = False
+    load: str = None
+    initial_conf: str = None
 
-        # initialization
-        'use_gt_poses': False, 'refine_gt_poses': False,
-        'use_gt_trans': False, 'load': None, 'initial_conf': None,
+    # logging and verbosity
+    log_interval: int = 10000
+    log_heavy_interval: int = 5
+    verbose_time: bool = False
 
-        # logging
-        'log_interval': 10000, 'log_heavy_interval': 5, 'verbose_time': False,
+    #data loading
+    shuffle: bool = True
+    lazy: bool = False
+    num_workers: int = 2
+    max_threads: int = 16
+    fast_dataloading: bool = False
+    shuffler_size: int = 32768
+    batch_size_known_poses: int = 32
+    batch_size_hps: int = 8
+    batch_size_sgd: int = 256
 
-        # data loading
-        'shuffle': True, 'lazy': False, 'num_workers': 2, 'max_threads': 16,
-        'fast_dataloading': False, 'shuffler_size': 32768,
-        'batch_size_known_poses': 32, 'batch_size_hps': 8,
-        'batch_size_sgd': 256,
+    # optimizers
+    hypervolume_optimizer_type: str = "adam"
+    pose_table_optimizer_type: str = "adam"
+    conf_table_optimizer_type: str = "adam"
+    conf_encoder_optimizer_type: str = "adam"
+    lr: float = 1.0e-4
+    lr_pose_table: float = 1.0e-3
+    lr_conf_table: float = 1.0e-2
+    lr_conf_encoder: float = 1.0e-4
+    wd: float = 0.0
 
-        # optimizers
-        'hypervolume_optimizer_type': "adam",
-        'pose_table_optimizer_type': "adam",
-        'conf_table_optimizer_type': "adam",
-        'conf_encoder_optimizer_type': "adam",
-        'lr': 1.0e-4, 'lr_pose_table': 1.0e-3,
-        'lr_conf_table': 1.0e-2, 'lr_conf_encoder': 1.0e-4, 'wd': 0.0,
+    # scheduling
+    n_imgs_pose_search: int = 500000
+    epochs_sgd: int = 100
+    pose_only_phase: int = 0
 
-        # scheduling
-        'n_imgs_pose_search': 500000, 'epochs_sgd': 100, 'pose_only_phase': 0,
+    # masking
+    output_mask: str = "circ"
+    add_one_frequency_every: int = 100000
+    n_frequencies_per_epoch: int = 10
+    max_freq: int = None
+    window_radius_gt_real: float = 0.85
+    l_start_fm: int = 12
 
-        # masking
-        'output_mask': "circ", 'add_one_frequency_every': 100000,
-        'n_frequencies_per_epoch': 10, 'max_freq': None,
-        'window_radius_gt_real': 0.85, 'l_start_fm': 12,
+    # loss
+    beta_conf: float = 0.0
+    trans_l1_regularizer: float = 0.0
+    l2_smoothness_regularizer: float = 0.0
 
-        # loss
-        'beta_conf': 0.0, 'trans_l1_regularizer': 0.0,
-        'l2_smoothness_regularizer': 0.0,
+    # conformations
+    variational_het: bool = False
+    z_dim: int = 4
+    std_z_init: float = 0.1
+    use_conf_encoder: bool = False
+    depth_cnn: int = 5
+    channels_cnn: int = 32
+    kernel_size_cnn: int = 3
+    resolution_encoder: str = None
 
-        # conformations
-        'variational_het': False, 'z_dim': 4, 'std_z_init': 0.1,
-        'use_conf_encoder': False, 'depth_cnn': 5, 'channels_cnn': 32,
-        'kernel_size_cnn': 3, 'resolution_encoder': None,
+    # hypervolume
+    explicit_volume: bool = False
+    hypervolume_layers: int = 3
+    hypervolume_dim: int = 256
+    pe_type: str = "gaussian"
+    pe_dim: int = 64
+    feat_sigma: float = 0.5
+    hypervolume_domain: str = "hartley"
+    pe_type_conf: str = None
 
-        # hypervolume
-        'explicit_volume': False, 'hypervolume_layers': 3,
-        'hypervolume_dim': 256, 'pe_type': "gaussian", 'pe_dim': 64,
-        'feat_sigma': 0.5, 'hypervolume_domain': "hartley",
-        'pe_type_conf': None,
+    # pre-training
+    n_imgs_pretrain: int = 10000
+    pretrain_with_gt_poses: bool = False
 
-        # pre-training
-        'n_imgs_pretrain': 10000, 'pretrain_with_gt_poses': False,
+    # pose search
+    l_start: int = 12
+    l_end: int = 32
+    n_iter: int = 4
+    t_extent: float = 20.0
+    t_n_grid: int = 7
+    t_x_shift: float = 0.0
+    t_y_shift: float = 0.0
+    no_trans_search_at_pose_search: bool = False
+    n_kept_poses: int = 8
+    base_healpy: int = 2
 
-        # pose search
-        'l_start': 12, 'l_end': 32, 'n_iter': 4, 't_extent': 20.0,
-        't_n_grid': 7, 't_x_shift': 0.0, 't_y_shift': 0.0,
-        'no_trans_search_at_pose_search': False, 'n_kept_poses': 8,
-        'base_healpy': 2,
+    # subtomogram averaging
+    subtomogram_averaging: bool = False
+    n_tilts: int = 11
+    dose_per_tilt: float = None
+    angle_per_tilt: float = None
+    n_tilts_pose_search: int = None
+    average_over_tilts: bool = False
+    tilt_axis_angle: float = 0.0
+    dose_exposure_correction: bool = True
 
-        # subtomogram averaging
-        'subtomogram_averaging': False,
-        'n_tilts': 11,
-        'dose_per_tilt': 2.93,
-        'angle_per_tilt': 3.0,
-        'n_tilts_pose_search': 11,
-        'average_over_tilts': False,
-        'tilt_axis_angle': 0.0,
-        'dose_exposure_correction': True,
+    # others
+    seed: int = -1
+    color_palette: str = None
+    test_installation: bool = False
 
-        # others
-        'seed': -1,
-        'color_palette': None,
-        'test_installation': False,
-        })
+    quick_configs = OrderedDict(
+        {
+            'capture_setup': {
+                'spa': dict(),
+                'et': {'subtomogram_averaging': True, 'fast_dataloading': True,
+                       'shuffler_size': 0, 'num_workers': 0, 't_extent': 0.0,
+                       'batch_size_known_poses': 8, 'batch_size_sgd': 32,
+                       'n_imgs_pose_search': 150000, 'pose_only_phase': 50000,
+                       'lr_pose_table': 1.0e-5}
+                },
 
-    quick_defaults = {
-        'capture_setup': {
-            'spa': dict(),
-            'et': {'subtomogram_averaging': True, 'fast_dataloading': True,
-                   'shuffler_size': 0, 'num_workers': 0, 't_extent': 0.0,
-                   'batch_size_known_poses': 8, 'batch_size_sgd': 32,
-                   'n_imgs_pose_search': 150000, 'pose_only_phase': 50000,
-                   'lr_pose_table': 1.0e-5}
-            },
+            'reconstruction_type': {
+                'homo': {'z_dim': 0}, 'het': dict()},
 
-        'reconstruction_type': {
-            'homo': {'z_dim': 0}, 'het': dict()},
+            'pose_estimation': {
+                'abinit': dict(),
+                'refine': {'refine_gt_poses': True, 'pretrain_with_gt_poses': True,
+                           'lr_pose_table': 1.0e-4},
+                'fixed': {'use_gt_poses': True}
+                },
 
-        'pose_estimation': {
-            'abinit': dict(),
-            'refine': {'refine_gt_poses': True, 'lr_pose_table': 1.0e-4},
-            'fixed': {'use_gt_poses': True}
-            },
-
-        'conf_estimation': {
-            None: dict(),
-            'autodecoder': dict(),
-            'refine': dict(),
-            'encoder': {'use_conf_encoder': True}
+            'conf_estimation': {
+                None: dict(),
+                'autodecoder': dict(),
+                'refine': dict(),
+                'encoder': {'use_conf_encoder': True}
+                }
             }
-        }
+        )
 
-    def __init__(self, config_vals: dict):
-        super().__init__(config_vals)
+    def __post_init__(self):
+        super().__post_init__()
 
         if self.test_installation:
             print('Installation was successful!')
@@ -170,25 +305,22 @@ class TrainingConfigurations(_BaseConfigurations):
         # process the quick_config parameter
         if self.quick_config is not None:
             for key, value in self.quick_config.items():
-                if key not in self.quick_defaults:
+                if key not in self.quick_configs:
                     raise ValueError("Unrecognized parameter "
                                      f"shortcut field `{key}`!")
 
-                if value not in self.quick_defaults[key]:
+                if value not in self.quick_configs[key]:
                     raise ValueError("Unrecognized parameter shortcut label "
                                      f"`{value}` for field `{key}`!")
 
-                for _key, _value in self.quick_defaults[key][value].items():
-                    if _key not in self.defaults:
+                for _key, _value in self.quick_configs[key][value].items():
+                    if _key not in self:
                         raise ValueError("Unrecognized configuration "
                                          f"parameter `{key}`!")
 
-                    # given parameters have priority
-                    if _key not in config_vals:
+                    # parameters given elsewhere in configs have priority
+                    if getattr(self, _key) == getattr(type(self), _key):
                         setattr(self, _key, _value)
-
-        if not self.outdir:
-            raise ValueError("Must specify an outdir!")
 
         if self.explicit_volume and self.z_dim >= 1:
             raise ValueError("Explicit volumes do not support "
@@ -273,9 +405,12 @@ class TrainingConfigurations(_BaseConfigurations):
                 raise ValueError("n_tilts_pose_search must be odd "
                                  "to use average_over_tilts!")
 
+            if self.n_tilts_pose_search is None:
+                self.n_tilts_pose_search = self.n_tilts
             if self.n_tilts_pose_search > self.n_tilts:
                 raise ValueError("n_tilts_pose_search must be "
                                  "smaller than n_tilts!")
+
         if self.use_gt_poses:
             # "poses" include translations
             self.use_gt_trans = True
@@ -307,9 +442,17 @@ class TrainingConfigurations(_BaseConfigurations):
                 self.dose_per_tilt = paths[self.dataset]['dose_per_tilt']
 
 
+@dataclass
 class AnalysisConfigurations(_BaseConfigurations):
 
-    defaults = {'epoch': -1, 'skip_umap': False, 'pc': 2, 'n_per_pc': 10,
-                'ksample': 20, 'seed': -1, 'invert': True,
-                'sample_z_idx': None, 'trajectory_1d': None,
-                'direct_traversal_txt': None, 'z_values_txt': None}
+    epoch: int = -1
+    skip_umap: bool = False
+    pc: int = 2
+    n_per_pc: int = 10
+    ksample: int = 20
+    seed: int = -1
+    invert: bool = True
+    sample_z_idx: int = None
+    trajectory_1d: int = None
+    direct_traversal_txt: str = None
+    z_values_txt: str = None

@@ -3,6 +3,7 @@
 import os
 import shutil
 import logging
+import yaml
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,12 +26,14 @@ TEMPLATE_DIR = os.path.join(
 class VolumeGenerator:
     """Helper class to call analysis.gen_volumes"""
 
-    def __init__(self, hypervolume, lattice, z_dim, invert, radius_mask):
+    def __init__(self,
+                 hypervolume, lattice, z_dim, invert, radius_mask, data_norm=(0, 1)):
         self.hypervolume = hypervolume
         self.lattice = lattice
         self.z_dim = z_dim
         self.invert = invert
         self.radius_mask = radius_mask
+        self.data_norm = data_norm
 
     def gen_volumes(self, outdir, z_values, suffix=None):
         """
@@ -48,7 +51,7 @@ class VolumeGenerator:
                 out_mrc = "{}/{}{:03d}.mrc".format(outdir, "vol_", suffix)
 
             vol = models.eval_volume_method(self.hypervolume, self.lattice,
-                                            self.z_dim, (0., 1.), zval=z,
+                                            self.z_dim, self.data_norm, zval=z,
                                             radius=self.radius_mask)
 
             if self.invert:
@@ -75,26 +78,47 @@ class ModelAnalyzer:
                         will be taken along each principal component axis.
     """
 
-    def __init__(self, config_vals: dict, train_config_vals: dict) -> None:
+    @classmethod
+    def get_last_cached_epoch(cls, traindir: str) -> int:
+        chkpnt_files = [fl for fl in os.listdir(traindir) if fl[:8] == "weights."]
+
+        epoch = -2 if not chkpnt_files else max(
+            int(fl.split('.')[1]) for fl in os.listdir(traindir)
+            if fl[:8] == "weights."
+            )
+
+        return epoch
+
+    def __init__(self,
+                 traindir: str, config_vals: dict, train_config_vals: dict) -> None:
         self.logger = logging.getLogger(__name__)
 
-        self.configs = AnalysisConfigurations(config_vals)
-        self.train_configs = TrainingConfigurations(train_config_vals)
-        self.traindir = self.train_configs.outdir
+        self.configs = AnalysisConfigurations(**config_vals)
+        self.train_configs = TrainingConfigurations(**train_config_vals['training'])
+        self.traindir = traindir
+
+        # find how input data was normalized for training
+        self.out_cfgs = {k: v for k, v in train_config_vals.items() if k != 'training'}
+        if 'data_norm_mean' not in self.out_cfgs:
+            self.out_cfgs['data_norm_mean'] = 0.
+        if 'data_norm_std' not in self.out_cfgs:
+            self.out_cfgs['data_norm_std'] = 1.
+
+        # use last completed epoch if no epoch given
+        if self.configs.epoch == -1:
+            self.epoch = self.get_last_cached_epoch(traindir)
+        else:
+            self.epoch = self.configs.epoch
+
+        if self.epoch == -2:
+            raise ValueError(
+                f"Cannot perform any analyses for output directory `{self.traindir}` "
+                f"which does not contain any saved drngai training checkpoints!"
+                )
 
         self.use_cuda = torch.cuda.is_available()
         self.device = torch.device('cuda:0' if self.use_cuda else 'cpu')
         self.logger.info(f"Use cuda {self.use_cuda}")
-
-        # use last completed epoch if no epoch given
-        if self.configs.epoch == -1:
-            self.epoch = max(
-                int(fl.split('.')[1]) for fl in os.listdir(self.traindir)
-                if fl[:8] == "weights."
-                )
-
-        else:
-            self.epoch = self.configs.epoch
 
         # load model
         checkpoint_path = os.path.join(self.traindir,
@@ -114,8 +138,10 @@ class ModelAnalyzer:
         self.z_dim = checkpoint['hypervolume_params']['z_dim']
         radius_mask = (checkpoint['output_mask_radius']
                        if 'output_mask_radius' in checkpoint else None)
-        self.vg = VolumeGenerator(hypervolume, lattice, self.z_dim,
-                                  self.configs.invert, radius_mask)
+        self.vg = VolumeGenerator(
+            hypervolume, lattice, self.z_dim, self.configs.invert, radius_mask,
+            data_norm=(self.out_cfgs['data_norm_mean'], self.out_cfgs['data_norm_std'])
+            )
 
         # load the conformations
         if self.train_configs.z_dim > 0:
