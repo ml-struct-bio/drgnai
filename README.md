@@ -1,4 +1,4 @@
-# :dragon::robot: DRGN-AI: _Ab initio_ heterogeneous cryo-EM reconstruction #
+# :dragon::robot: DRGN-AI: _Ab initio_ cryo-EM reconstruction #
 
 DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction. The
 method leverages the expressive representation capacity of neural models and implements a two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot reconstruction of noisy, large cryo-EM datasets. 
