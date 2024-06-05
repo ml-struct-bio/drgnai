@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="DRGN-AI Webpage">
+    <meta property="og:title" content="DRGN-AI"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <title>DRGN-AI</title>
+    <link rel="icon" type="image/x-icon" href="static/images/dragon-face.png">
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="static/css/bulma.min.css">
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="static/css/index.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+    <script defer src="static/js/fontawesome.all.min.js"></script>
+    <script src="static/js/bulma-carousel.min.js"></script>
+    <script src="static/js/bulma-slider.min.js"></script>
+    <script src="static/js/index.js"></script>
+</head>
+<body>
+
+
+<section class="hero is-white">
+    <div class="hero-body">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column has-text-centered">
+                    <h1 class="title is-1 publication-title">Revealing biomolecular structure and motion with neural ab
+                        initio cryo-EM reconstruction</h1>
+                    <div class="is-size-5 publication-authors">
+                        <!-- Paper authors -->
+                        <span class="author-block">
+                <a href="https://axlevy.com/" target="">Axel Levy</a><sup>1,2</sup>,</span>
+                        <span class="author-block">
+                <a href="https://ezlab.princeton.edu/team/" target="">Michal Grzadkowski</a><sup>3</sup>,</span>
+                        <span class="author-block">
+                <a href="https://scholar.google.fr/citations?user=qz6POUsAAAAJ&hl=fr" target="">Frédéric Poitevin</a><sup>2</sup>,</span>
+                        <span class="author-block">
+                <a href="https://scholar.google.com/citations?user=8nMXCp0AAAAJ&hl=en" target="">Francesca Vallese</a><sup>4,5</sup>,</span>
+                        <br>
+                        <span class="author-block">
+                <a href="https://www.physiology.columbia.edu/Clarke.html" target="">Oliver Biggs Clarke</a><sup>4,5</sup>,</span>
+                        <span class="author-block">
+                <a href="https://www.computationalimaging.org/" target="">Gordon Wetzstein</a><sup>1</sup></span>,</span>
+                        <span class="author-block">
+                <a href="https://ezlab.princeton.edu/" target="">Ellen D. Zhong</a><sup>3</sup></span>
+                    </div>
+
+                    <div class="is-size-5 publication-authors">
+                        <span class="author-block">1: Stanford University - 2: SLAC National Laboratory - 3: Princeton University <br> 4: Columbia University - 5: Columbia University Irving Medical Center</span>
+                    </div>
+
+                    <span class="link-block">
+                                                <a href="https://" target="_blank"
+                                                   class="external-link button is-normal is-rounded is-dark">
+                                                <span class="icon">
+                                                  <i class="fab fa-github"></i>
+                                                </span>
+                                                <span>Code</span>
+                                              </a>
+                                            </span>
+
+                    <span class="link-block">
+                  <a href="https://" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                    <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+
+                    <span class="link-block">
+                  <a href="https://ez-lab.gitbook.io/drgn-ai" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                    <i class="fas fa-book-open"></i>
+                  </span>
+                  <span>User Guide</span>
+                </a>
+              </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+</section>
+
+
+<section class="hero  is-white teaser">
+    <div class="container is-max-desktop">
+        <div class="hero-body">
+            <img src="static/images/teaser.png" alt="teaser" class="center">
+            <h2 class="subtitle has-text-centered">
+                DRGN-AI turns a collection of picked particles with known CTF parameters into a continuous ensemble of 3D structures.
+            </h2>
+        </div>
+    </div>
+</section>
+
+<section class="section hero is-light">
+    <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Abstract</h2>
+                <div class="content has-text-justified">
+                    <p>
+                        Proteins and other biomolecules form dynamic macromolecular machines tightly orchestrated to
+                        move, bind, and perform chemistry.
+                        Uncovering their structural variability is key to understanding mechanism and function.
+                        Imaging techniques such as cryo-electron microscopy (cryo-EM) can access the intrinsic
+                        heterogeneity of these complexes but accessing this information requires a challenging
+                        computational problem of 3D reconstruction.
+                        To address heterogeneity, reconstruction usually proceeds sequentially using different
+                        algorithms for pose estimation and refinement vs. heterogeneity.
+                        Here, we introduce a novel deep generative model for heterogeneous 3D reconstruction from 2D
+                        cryo-EM imaging data. Our model, DRGN-AI, can operate ab initio, that is, reconstruct from
+                        scratch without input poses or initial models and thus newly enables structure determination of
+                        highly dynamic complexes or mixtures of unknown composition.
+                        Using DRGN-AI, we reconstruct the compositional and conformational variability contained in a
+                        variety of benchmark datasts, process an unfiltered dataset of the DSL1/SNARE complex fully ab
+                        initio, and reveal a new ``supercomplex'' state of the human erythrocyte ankyrin-1 complex.
+                        With this expressive and scalable model for structure determination, we hope to unlock the full
+                        potential of cryo-EM as a high-throughput tool for structural biology and discovery.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section hero">
+    <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Method</h2>
+<!--                <h3 class="title is-5">Architecture Overview</h3>-->
+                <img src="static/images/method.png" alt="method" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>Architecture overview.</b>
+                    For each observed image, a synthetic image is generated by a differentiable forward model.
+                    The latent variables (poses and conformations) are stored in look-up tables.
+                    The whole pipeline can therefore be seen as an autodecoder.
+                    Poses are first estimated using hierarchical pose search (HPS) and then refined by stochastic gradient descent (SGD).
+                </div>
+<!--                <h3 class="title is-5">Two-Step Strategy for Pose Estimation</h3>-->
+                <img src="static/images/pose_error.png" alt="pose error" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>Two-step strategy for pose estimation.</b>
+                    We plot the pose error during training on a synthetic 80S ribosome dataset (100,000 particles, 128 × 128, 3.77 Å/pix).
+                    Pose error is quantified by the mean out-of-plane angular error (mean and standard deviation over 5 runs).
+                    HPS is used during the first five epochs, to provide a good initialization for SGD.
+                    Gradient descent is 20x faster and leads to more accurate poses since it is not limited by the resolution of the search grid.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section hero">
+    <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Results</h2>
+                <h3 class="title is-4">Pre-catalytic Spliceosome (EMPIAR-10180 [1])</h3>
+                <img src="static/images/spliceosome.png" alt="spliceosome" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>DRGN-AI reconstructs the continuous bending motion of the pre-catalytic spliceosome while clustering a set of particle images corresponding to broken or denatured density maps in the latent space.</b>
+                    A histogram of the two first principal components of the predicted conformations is shown. .
+                    Density maps 1-3 show a continuous bending motion of the molecule.
+                    An outlier cluster resembling broken or junk particles and two randomly selected particles images from that cluster.
+                    Dashed lines indicate outlines of the extended spliceosome.
+                </div>
+                <div class="content has-text-justified is-small">
+                    [1] Plaschka, C., Lin, P. C., & Nagai, K. (2017). Structure of a pre-catalytic spliceosome. Nature, 546(7660), 617-621.
+                </div>
+
+                <h3 class="title is-4">Assembling Bacterial Large Ribosomal Subunit (EMPIAR-10076 [2])</h3>
+                <img src="static/images/50S.png" alt="50S" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>DRGN-AI recovers the compositional heterogeneity in the assembly states of the bacterial large ribosomal subunit, while also grouping previously unclassified and discarded particles in the latent space.</b>
+                    Conformations are embedded in a two-dimensional space with UMAP.
+                    The distribution of the published labels is shown in this space with a Gaussian kernel density estimation (KDE) and four of the maps obtained by 𝑘-means clustering (𝑘 = 6).
+                    Dashed lines indicate outlines of the fully mature 50S ribosome.
+                </div>
+                <div class="content has-text-justified is-small">
+                    [2] Davis, J. H., Tan, Y. Z., Carragher, B., Potter, C. S., Lyumkis, D., & Williamson, J. R. (2016). Modular assembly of the bacterial large ribosomal subunit. Cell, 167(6), 1610-1622.
+                </div>
+
+                <h3 class="title is-4">SARS-CoV-2 Spike [3]</h3>
+                <img src="static/images/spike.png" alt="spike" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>DRGN-AI reconstructs both the closed and open states of the spike protein fully <i>ab initio</i> and resolve the conformational change of the receptor binding domain.</b>
+                    Predicted conformations are clustered with 𝑘-means and the distribution of two first principal components of each cluster is approximated with Gaussian KDE.
+                    Two sampled density maps correspond to the closed and open states of the receptor binding domain (RBD) with docked atomic models (PDB:6VXX, PDB:6VYB).
+                </div>
+                <div class="content has-text-justified is-small">
+                    [3] Walls, A. C., Park, Y. J., Tortorici, M. A., Wall, A., McGuire, A. T., & Veesler, D. (2020). Structure, function, and antigenicity of the SARS-CoV-2 spike glycoprotein. Cell, 181(2), 281-292.
+                </div>
+
+                <h3 class="title is-4">DSL1/Snare Complex [4]</h3>
+                <video poster="" id="tree" autoplay controls muted loop height="100%">
+                <source src="static/videos/dsl1.mp4"
+                type="video/mp4">
+                </video>
+                <div class="content has-text-justified">
+                    <br>
+                    <b>DRGN-AI <i>ab initio</i> reconstruction of a highly heterogeneous dataset of the DSL1/SNARE complex.</b>
+                    The trajectory was generated by simulating a brownian motion in the PC1/2 space, biased towards the origin with a harmonic potential.
+
+                </div>
+                <div class="content has-text-justified is-small">
+                    [4] DAmico, K. A., Stanton, A. E., Shirkey, J. D., Travis, S. M., Jeffrey, P. D., & Hughson, F. M. (2024). Structure of a membrane tethering complex incorporating multiple SNAREs. Nature Structural & Molecular Biology, 1-9.
+                </div>
+
+                <h3 class="title is-4">Ankyrin Supercomplex [5]</h3>
+                <img src="static/images/ankyrin.png" alt="ankyrin" class="center">
+                <div class="content has-text-justified">
+                    <br>
+                    <b>Heterogeneous reconstruction of the human erythrocyte ankyrin-1 complex and identification of a new “supercomplex” state.</b>
+                     PCA on the latent space of predicted conformations and sampled density maps from their corresponding location in latent space.
+                    Conformations can be distinguished according to micelle composition.
+                    The six classes from Vallese et al. [5] (1 to 6) are recovered.
+                    DRGN-AI also reveals the presence of a new “supercomplex” state (7), which simultaneously contains the rhesus heterotrimer (Rh), the aquaporin (AQP1), the band 3-I (B3-I), the band 3-II (B3-II), the band 3-III (B3-III) dimers and an unknown protein Y in the micelle.
+                    Y could correspond to the unknown protein reported in Vallese et al. [5].
+                </div>
+                <div class="content has-text-justified is-small">
+                    [5] Vallese, F., Kim, K., Yen, L. Y., Johnston, J. D., Noble, A. J., Calì, T., & Clarke, O. B. (2022). Architecture of the human erythrocyte ankyrin-1 complex. Nature structural & molecular biology, 29(7), 706-718.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+        <h2 class="title">BibTeX</h2>
+        <pre><code>...</code></pre>
+    </div>
+</section>
+
+
+<footer class="footer">
+    <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-8">
+                <div class="content">
+
+                    <p>
+                        This website is licensed under a <a rel="license"
+                                                            href="http://creativecommons.org/licenses/by-sa/4.0/"
+                                                            target="_blank">Creative
+                        Commons Attribution-ShareAlike 4.0 International License</a>.
+                    </p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>
