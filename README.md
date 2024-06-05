@@ -92,7 +92,7 @@ After setup is complete, run the experiment using `drgnai train your_outdir`.
 drgnai train your_outdir
 ```
 
-`drgnai` will save the outputs of training under `your_outdir/out/`. By default, at the end of training, `drgnai` will analyze the results from the last epoch. 
+DRGN-AI will save the outputs of training under `your_outdir/out/`. By default, at the end of training, DRGN-AI will analyze the results from the last epoch. 
 
 
 You can also run analyses on a particular training epoch instead of the last epoch. Outputs of each analysis will be stored under 
@@ -121,7 +121,7 @@ output directory and 6565 is an arbitrary port number.
 The behavior of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
 experiment. However, only the most important parameters are available through this interface:
 
- - `--capture-setup` “spa” for single-particle analysis (default) or “et” for electron tomography
+ - `--capture-setup` “spa” for single-particle analysis (default, only version supported for the moment)
  - `--reconstruction-type` “het” for heterogeneous or “homo” for homogeneous (default)
  - `--pose-estimation` “abinit” for no initialization (default), “refine” to refine provided poses by gradient
                        descent or “fixed” to use provided poses without refinement
