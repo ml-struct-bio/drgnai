@@ -34,7 +34,7 @@ the git repository, and then use `pip` to install the package from the source co
 
     (base) $ conda create --name drgnai python=3.9
     (base) $ conda activate drgnai
-    (drgnai) $ git clone git@github.com:ml-struct-bio/drgnai.git
+    (drgnai) $ git clone https://github.com/ml-struct-bio/drgnai.git
     (drgnai) $ cd drgnai/
     (drgnai) $ pip install . 
 
