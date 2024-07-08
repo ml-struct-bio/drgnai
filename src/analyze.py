@@ -3,8 +3,9 @@
 import os
 import shutil
 import logging
-import yaml
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -19,8 +20,7 @@ from . import models
 from .configuration import AnalysisConfigurations, TrainingConfigurations
 from .lattice import Lattice
 
-TEMPLATE_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'templates')
+TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
 
 class VolumeGenerator:

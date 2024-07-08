@@ -1,6 +1,8 @@
 import argparse
 import re
 import logging
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure, Axes
 import numpy as np
