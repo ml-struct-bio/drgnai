@@ -5,16 +5,14 @@ import os
 import yaml
 import difflib
 
-CONFIG_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                          'configs')
-os.environ["NUMEXPR_MAX_THREADS"] = "1"
-
 from cryodrgn import utils
 from .reconstruct import ModelTrainer
 from .analyze import ModelAnalyzer
 from .configuration import AnalysisConfigurations, TrainingConfigurations
 from .visualization import interactive_filtering
 from .utils import checksum
+
+os.environ["NUMEXPR_MAX_THREADS"] = "1"
 
 
 def run_cryodrgn_ai() -> None:
@@ -179,14 +177,26 @@ def setup_experiment(args) -> dict:
     if os.path.exists(configs_file):
         with open(configs_file, 'r') as f:
             configs = yaml.safe_load(f)
-    else:
+
+    elif hasattr(args, 'particles') and hasattr(args, 'ctf'):
         configs = {'particles': args.particles,
                    'ctf': args.ctf, 'pose': args.pose,
                    'quick_config': {'capture_setup': args.capture_setup,
                                     'reconstruction_type': args.rcnstr_type,
                                     'pose_estimation': args.pose_estim,
                                     'conf_estimation': args.conf_estim}}
+    else:
+        raise ValueError(
+            f"No configuration file found in {args.outdir}, nor was a dataset "
+            "specified using --particles and --ctf from the command line!"
+        )
 
+    if 'quick_config' in configs:
+        if 'capture_setup' in configs['quick_config']:
+            if configs['quick_config']['capture_setup'] == 'et':
+                raise NotImplementedError("DRGN-AI does not support ET inputs!")
+
+    # we don't take dataset as a command-line argument — should we?
     if hasattr(args, 'dataset') and args.dataset is not None:
         configs['dataset'] = args.dataset
     if hasattr(args, 'datadir') and args.datadir is not None:
@@ -209,6 +219,12 @@ def setup_experiment(args) -> dict:
 
     paths_file = os.environ.get("DRGNAI_DATASETS")
     if paths_file:
+        if not os.path.exists(paths_file):
+            raise ValueError(
+                f"Your DRGNAI_DATASETS environment variable `{paths_file}` "
+                "points to a missing file!"
+            )
+
         with open(paths_file, 'r') as f:
             data_paths = yaml.safe_load(f)
     else:

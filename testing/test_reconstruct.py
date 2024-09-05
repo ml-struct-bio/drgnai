@@ -77,8 +77,8 @@ def test_small_dataset_and_load(configs_outdir):
     assert (configs_outdir.outpath / 'weights.4.pkl').exists(), err
     assert not (configs_outdir.outpath / 'analysis_4').exists(), err
 
-    assert configs_outdir.output_hash(2) == -0.271
-    assert configs_outdir.output_hash(4) == -1.07
+    assert configs_outdir.output_hash(2) == 14.415
+    assert configs_outdir.output_hash(4) == 13.535
 
     # manually create configurations file for run where we restart from checkpoint
     new_configs = configs_outdir.load_configs()
@@ -95,14 +95,14 @@ def test_small_dataset_and_load(configs_outdir):
 
     assert (configs_outdir.outpath / f'weights.6.pkl').exists(), err
     assert (configs_outdir.outpath / 'analysis_6').exists(), err
-    assert configs_outdir.output_hash(6) == -1.728
+    assert configs_outdir.output_hash(6) == 12.803
 
 
 @pytest.mark.parametrize(
     "outdir", [
         dict(TEST_ARGS,
              **{'particles': os.path.join(DATA_DIR, "hand.5.mrcs"),
-                'ctf': os.path.join(DATA_DIR, "ctf1.pkl"), 'ind': ind,
+                'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"), 'ind': ind,
                 'n_imgs_pose_search': 10, 'epochs_sgd': 3, 'seed': 555,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 5,
                 'quick_config': {'capture_setup': 'spa',
@@ -139,8 +139,8 @@ class TestSetupIntegration:
         assert (outdir.outpath / 'weights.5.pkl').exists()
         assert not (outdir.outpath / 'analysis_5').exists()
         assert outdir.output_hash(5) == {
-            None: 10.006, 3: 5.361,
-            os.path.join(DATA_DIR, "hand-ind3.pkl"): 19.683,
+            None: 10.572, 3: 4.68,
+            os.path.join(DATA_DIR, "hand-ind3.pkl"): 17.189,
             }[outdir.params['ind']]
 
 
@@ -148,7 +148,7 @@ class TestSetupIntegration:
     "configs_outdir", [
         dict(TEST_ARGS,
              **{'particles': os.path.join(DATA_DIR, "hand.5.mrcs"),
-                'ctf': os.path.join(DATA_DIR, "ctf1.pkl"),
+                'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"),
                 'n_imgs_pose_search': 10, 'seed': 555,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 2,
                 'quick_config': {'capture_setup': 'spa',
@@ -179,7 +179,7 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.4.pkl').exists()
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 10.006
+        assert configs_outdir.output_hash(5) == 10.572
 
     def test_auto_load(self, configs_outdir):
         """Run some of the same epochs first; then use auto-restart to do the rest."""
@@ -213,14 +213,14 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'weights.6.pkl').exists()
         assert (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 10.006
+        assert configs_outdir.output_hash(5) == 10.572
 
 
 @pytest.mark.parametrize(
     "configs_outdir", [
         dict(TEST_ARGS,
              **{'particles': os.path.join(DATA_DIR, "hand.5.mrcs"),
-                'ctf': os.path.join(DATA_DIR, "ctf1.pkl"),
+                'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"),
                 'n_imgs_pose_search': 10, 'epochs_sgd': 3,
                 't_extent': 4.0, 't_n_grid': 2, 'z_dim': 4,
                 'seed': 7171, 'log_heavy_interval': 1,
@@ -243,7 +243,7 @@ class TestHeterogeneousTrain:
 
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 1.346
+        assert configs_outdir.output_hash(5) == 8.354
 
     def test_separate_analyses(self, configs_outdir):
         """Run training and then check analyses for small experiments."""
@@ -253,14 +253,14 @@ class TestHeterogeneousTrain:
 
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 1.346
+        assert configs_outdir.output_hash(5) == 8.354
 
         out, err = run_command(f"drgnai analyze {configs_outdir.basepath} "
                                "--ksample=2 --skip-umap")
         assert set(os.listdir(configs_outdir.basepath)) == {'out', 'configs.yaml'}, err
 
         assert (configs_outdir.outpath / 'analysis_5' / 'z_pca.png').exists()
-        assert configs_outdir.output_hash(5) == 1.346
+        assert configs_outdir.output_hash(5) == 8.354
 
         assert not (configs_outdir.outpath / 'analysis_3' / 'z_pca.png').exists()
         out, err = run_command(f"drgnai analyze {configs_outdir.basepath} "
@@ -268,16 +268,16 @@ class TestHeterogeneousTrain:
         assert set(os.listdir(configs_outdir.basepath)) == {'out', 'configs.yaml'}, err
 
         assert (configs_outdir.outpath / 'analysis_3' / 'z_pca.png').exists()
-        assert configs_outdir.output_hash(3) == 1.411
+        assert configs_outdir.output_hash(3) == 8.714
 
     def test_auto_analysis(self, configs_outdir):
         """Choosing an analysis epoch for an incomplete experiment."""
         out, err = run_command(f"drgnai train {configs_outdir.basepath} --no-analysis")
         assert set(os.listdir(configs_outdir.basepath)) == {'out', 'configs.yaml'}, err
 
-        assert configs_outdir.output_hash(5) == 1.346
+        assert configs_outdir.output_hash(5) == 8.354
         os.remove(os.path.join(configs_outdir.outpath, 'weights.5.pkl'))
-        assert configs_outdir.output_hash(4) == 1.377
+        assert configs_outdir.output_hash(4) == 8.533
 
         out, err = run_command(f"drgnai analyze {configs_outdir.basepath} "
                                "--ksample=2 --skip-umap")
@@ -326,7 +326,7 @@ class TestFixedPoses:
     "configs_outdir", [
         dict(TEST_ARGS,
              **{'particles': os.path.join(DATA_DIR, "hand.5.mrcs"),
-                'ctf': os.path.join(DATA_DIR, "ctf1.pkl"),
+                'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"),
                 'ind': os.path.join(DATA_DIR, "hand-ind3.pkl"),
                 'n_imgs_pose_search': 6, 'epochs_sgd': 5, 'seed': 55,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 1,
@@ -347,13 +347,14 @@ class TestIndices:
         assert 'Finished in ' in out, err
 
         assert (configs_outdir.outpath / 'weights.7.pkl').exists()
-        assert configs_outdir.output_hash(7) == -3.365
+        assert configs_outdir.output_hash(7) == 0.742
 
         out, err = run_command(f"drgnai analyze {configs_outdir.basepath} "
                                "--ksample=2 --skip-umap")
         assert (configs_outdir.outpath / 'analysis_7').exists(), err
 
 
+@pytest.mark.xfail
 @pytest.mark.parametrize(
     "configs_outdir", [
         dict(TEST_ARGS,
@@ -385,6 +386,7 @@ class TestTilts:
         assert configs_outdir.output_hash(5) == 2.309
 
 
+@pytest.mark.xfail
 @pytest.mark.parametrize(
     "configs_outdir", [
         dict(TEST_ARGS,

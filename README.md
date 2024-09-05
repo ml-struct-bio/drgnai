@@ -1,7 +1,10 @@
 # :dragon::robot: DRGN-AI: _Ab initio_ cryo-EM reconstruction #
 
-DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction. The
-method leverages the expressive representation capacity of neural models and implements a two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot reconstruction of noisy, large cryo-EM datasets. 
+DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction.
+The method leverages the expressive representation capacity of neural models and implements a
+two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot
+reconstruction of noisy, large cryo-EM datasets. 
+
 
 ## Documentation ##
 
@@ -10,14 +13,16 @@ including an overview and walkthrough of DRGN-AI installation, training and anal
 provided below.
 
 
-## New in Version 1.0.0 ##
+## New in Version 0.3.1-beta ##
 
  - Add `--datadir` to `drgnai setup`
  - Remove `outdir` from the `config.yaml`
  - Allow arbitrary config parameters to be passed to `drgnai setup`
  - Add `--load` in `drgnai train` for auto-restart of experiments
+ - Always save last epoch
  - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
    instead of just `out_old/`
+ - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai-internal/issues/123) found in previous version
 
 
 ### New in Version 0.2.2-beta ###
@@ -34,7 +39,7 @@ the git repository, and then use `pip` to install the package from the source co
 
     (base) $ conda create --name drgnai python=3.9
     (base) $ conda activate drgnai
-    (drgnai) $ git clone https://github.com/ml-struct-bio/drgnai.git
+    (drgnai) $ git clone git@github.com:ml-struct-bio/drgnai.git
     (drgnai) $ cd drgnai/
     (drgnai) $ pip install . 
 
@@ -84,6 +89,12 @@ quick_config:
   reconstruction_type: het
 ```
 
+Other configurations parameters can then still be added to `configs.yaml`;
+see [our documentation](https://ez-lab.gitbook.io/drgn-ai/full-documentation) for more details.
+We especially recommend `lazy: true` to avoid memory issues with larger datasets, as well `lr` to control the 
+learning rate of the reconstruction model.
+
+
 ### Reconstruction and analysis ###
 
 After setup is complete, run the experiment using `drgnai train your_outdir`. 
@@ -92,15 +103,17 @@ After setup is complete, run the experiment using `drgnai train your_outdir`.
 drgnai train your_outdir
 ```
 
-DRGN-AI will save the outputs of training under `your_outdir/out/`. By default, at the end of training, DRGN-AI will analyze the results from the last epoch. 
+`drgnai` will save the outputs of training under `your_outdir/out/`.
+By default, at the end of training, `drgnai` will analyze the results from the last epoch. 
 
 
-You can also run analyses on a particular training epoch instead of the last epoch. Outputs of each analysis will be stored under 
-`your_outdir/out/analysis_<epoch>/`.
+You can also run analyses on a particular training epoch instead of the last epoch.
+Outputs of each analysis will be stored under `your_outdir/out/analysis_<epoch>/`.
 
 ```
 drgnai analyze your_outdir --epoch 25
 ```
+
 
 ### Monitoring running experiments ###
 
@@ -121,7 +134,7 @@ output directory and 6565 is an arbitrary port number.
 The behavior of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
 experiment. However, only the most important parameters are available through this interface:
 
- - `--capture-setup` “spa” for single-particle analysis (default, only version supported for the moment)
+ - `--capture-setup` “spa” for single-particle analysis (default, only mode currently available)
  - `--reconstruction-type` “het” for heterogeneous or “homo” for homogeneous (default)
  - `--pose-estimation` “abinit” for no initialization (default), “refine” to refine provided poses by gradient
                        descent or “fixed” to use provided poses without refinement
@@ -156,12 +169,10 @@ is run. For a full overview of how to configure the parameters used in the DRGN-
 }
 ```
 
+
 ## Previous versions ##
 
 Below are major past releases of cryoDRGN with the features introduced in each:
-
-### Version 1.0.1 ###
-
 
 ### Version 0.2.0-beta ###
 

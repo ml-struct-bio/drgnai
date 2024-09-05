@@ -162,7 +162,7 @@ class MRCData(data.Dataset):
             assert ny % 2 == 0, "Image size must be even"
             self.resolution_input = resolution_input
 
-            logger.info("Lazy loaded {len(particles_real)} {ny}x{nx} images")
+            logger.info(f"Lazy loaded {len(particles_real)} {ny}x{nx} images")
 
             self.window = window
             self.window_r = window_r

@@ -2,7 +2,6 @@
 import pytest
 import os
 import yaml
-from dataclasses import fields
 from cryodrgnai.utils import run_command
 from cryodrgnai.configuration import TrainingConfigurations
 
@@ -11,6 +10,9 @@ DATASET_DIR = os.path.join(DATA_DIR, "data-paths.yaml")
 
 with open(DATASET_DIR, 'r') as f:
     datasets = yaml.safe_load(f)
+
+# for now remove tilt datasets
+datasets = {'hand': datasets['hand'], 'toy': datasets['toy']}
 
 
 def test_test():

@@ -1,5 +1,15 @@
-"""Parsing and storing configuration parameters for models."""
+"""Parsing and storing configuration parameters for reconstruction and analysis models.
 
+This module contains a data class hierarchy for representing user-specified parameter
+values for models used in DRGN-AI volume reconstruction as well as in directing the
+post-analyses of these models' outputs. These data classes are used in training and
+analyses engines such as `reconstruct.ModelTrainer` (usually as a `.config` attribute)
+to store such values in an easily indexed and documented fashion.
+
+See https://docs.python.org/3.9/library/dataclasses.html
+for more information on Python dataclasses.
+
+"""
 import os
 import sys
 import yaml
@@ -12,16 +22,13 @@ from typing import Any, ClassVar
 import difflib
 
 
-CONFIG_DIR = os.path.join(
-    os.path.abspath(os.path.dirname(os.path.dirname(__file__))), 'configs')
-
-
 @dataclass
 class _BaseConfigurations(ABC):
     """Base class for sets of model configuration parameters."""
 
     # a parameter belongs to this set if and only if it has a default value
-    # defined in this dictionary, ordering makes e.g. printing easier for user
+    # defined in this set of data class attributes
+    # note that ordering makes e.g. printing easier for user viewing
     verbose: int = 0
     seed: int = None
     quick_config: OrderedDict = field(default_factory=OrderedDict)
@@ -30,6 +37,14 @@ class _BaseConfigurations(ABC):
     quick_configs: ClassVar[dict[str, dict[str, Any]]] = OrderedDict()
 
     def __post_init__(self) -> None:
+        """Checking and parsing given parameter values.
+
+        This is a special method used in data classes for processing the given field
+        values. Here, and across our config children classes, we use it to verify that
+        the parameter values specified by the user are valid, as well as doing any
+        necessary parsing of these values.
+
+        """
         for this_field in fields(self):
             assert (
                 this_field.name == "quick_config" or this_field.default is not MISSING
@@ -38,6 +53,7 @@ class _BaseConfigurations(ABC):
                 f"for parameter `{this_field.name}`"
             )
 
+        # special parameter used to test whether the package was installed correctly
         if self.test_installation:
             print("Installation was successful!")
             sys.exit()
@@ -47,6 +63,8 @@ class _BaseConfigurations(ABC):
                 f"Given verbosity `{self.verbose}` is not a positive integer!"
             )
 
+        # if the user didn't pick a random seed we will pick one for them
+        # to ensure reproducibility
         if self.seed is None:
             self.seed = np.random.randint(0, 10000)
 
@@ -98,12 +116,26 @@ class _BaseConfigurations(ABC):
 
     @classmethod
     def fields(cls) -> list[Field]:
+        """Returning all fields defined for this class without needing an instance.
+
+        The default Python dataclass `fields` method does not have a counterpart for
+        classes, which we need in cases like `parse_cfg_keys()` which we want to call
+        without using an instance of the data class!
+
+        """
         members = inspect.getmembers(cls)
         return list(list(filter(
             lambda x: x[0] == '__dataclass_fields__', members))[0][1].values())
 
     @classmethod
     def parse_cfg_keys(cls, cfg_keys: list[str]) -> dict[str, Any]:
+        """Retrieve the parameter values given in a list of --cfgs command line entries.
+
+        This method parses the parameters given by a user via a `--cfgs` flag defined
+        for commands such as `drgnai setup` to provide an arbitrary set of
+        configuration parameters through the command line interface.
+
+        """
         cfgs = dict()
 
         for cfg_str in cfg_keys:
@@ -144,10 +176,12 @@ class _BaseConfigurations(ABC):
 
         return cfgs
 
+
 @dataclass
 class TrainingConfigurations(_BaseConfigurations):
+    """Configuration parameters for training DRGN-AI volume reconstruction models."""
 
-    # dataset
+    # input datasets
     particles: str = None
     ctf: str = None
     pose: str = None
@@ -258,7 +292,6 @@ class TrainingConfigurations(_BaseConfigurations):
     dose_exposure_correction: bool = True
 
     # others
-    seed: int = -1
     color_palette: str = None
     test_installation: bool = False
 
@@ -280,7 +313,7 @@ class TrainingConfigurations(_BaseConfigurations):
                 'abinit': dict(),
                 'refine': {'refine_gt_poses': True, 'pretrain_with_gt_poses': True,
                            'lr_pose_table': 1.0e-4},
-                'fixed': {'use_gt_poses': True}
+                'fixed': {'use_gt_poses': True, 'n_imgs_pose_search': 0}
                 },
 
             'conf_estimation': {
@@ -294,33 +327,6 @@ class TrainingConfigurations(_BaseConfigurations):
 
     def __post_init__(self):
         super().__post_init__()
-
-        if self.test_installation:
-            print('Installation was successful!')
-            sys.exit()
-
-        if self.seed < 0:
-            self.seed = np.random.randint(0, 10000)
-
-        # process the quick_config parameter
-        if self.quick_config is not None:
-            for key, value in self.quick_config.items():
-                if key not in self.quick_configs:
-                    raise ValueError("Unrecognized parameter "
-                                     f"shortcut field `{key}`!")
-
-                if value not in self.quick_configs[key]:
-                    raise ValueError("Unrecognized parameter shortcut label "
-                                     f"`{value}` for field `{key}`!")
-
-                for _key, _value in self.quick_configs[key][value].items():
-                    if _key not in self:
-                        raise ValueError("Unrecognized configuration "
-                                         f"parameter `{key}`!")
-
-                    # parameters given elsewhere in configs have priority
-                    if getattr(self, _key) == getattr(type(self), _key):
-                        setattr(self, _key, _value)
 
         if self.explicit_volume and self.z_dim >= 1:
             raise ValueError("Explicit volumes do not support "
@@ -444,13 +450,13 @@ class TrainingConfigurations(_BaseConfigurations):
 
 @dataclass
 class AnalysisConfigurations(_BaseConfigurations):
+    """Configuration parameters for post-analyses done on DRGN-AI models."""
 
     epoch: int = -1
     skip_umap: bool = False
     pc: int = 2
     n_per_pc: int = 10
     ksample: int = 20
-    seed: int = -1
     invert: bool = True
     sample_z_idx: int = None
     trajectory_1d: int = None

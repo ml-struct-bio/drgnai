@@ -568,7 +568,7 @@ def opt_theta_trans(
         nkeptposes = ps_params['nkeptposes'] if iter_ < ps_params['niter'] else 1
 
         keep_bn, keep_t, keep_q = keep_matrix(loss, batch_size, nkeptposes).cpu()  # B x (self.Nkeptposes*32)
-        keep_b = keep_bn * torch.div(batch_size, loss.shape[0], rounding_mode='trunc')
+        keep_b = torch.div(keep_bn * batch_size, loss.shape[0], rounding_mode='trunc')
         assert (
                 len(keep_b) == batch_size * nkeptposes
         ), f"{len(keep_b)} != {batch_size} x {nkeptposes} at iter {iter_}"

@@ -33,12 +33,20 @@ from .mask import CircularMask, FrequencyMarchingMask
 
 
 class ModelTrainer:
-    """An engine for training the reconstruction model on particle data.
+    """An engine for training the DRGN-AI reconstruction model on particle data.
+
+    The two crucial methods of this engine class are the `__init__()` method, in which
+    model parameters and data structures are initialized, and `train()`, in which the
+    model is trained in batches over the particle input data.
 
     Attributes
     ----------
-    configs (TrainingConfigurations):   Values of all parameters that can be
-                                        set by the user.
+    configs (TrainingConfigurations)
+        Values of all parameters controlling the
+        behaviour of the model that can be set by the user.
+
+    outdir (str):   Folder `out/` within the experiment working directory where
+                    model results will be saved.
 
     n_particles_dataset (int):  The number of picked particles in the data.
     pretraining (bool):     Whether we are in the pretraining stage.
@@ -95,11 +103,10 @@ class ModelTrainer:
                                              else None),
                 )
         else:
+            # multiprocessing_context="spawn" slows things down here, so we don't use it
             data_loader = DataLoader(
                 self.data, batch_size=batch_size, sampler=sampler,
                 num_workers=self.configs.num_workers,
-                multiprocessing_context=("spawn" if self.configs.num_workers > 0
-                                         else None),
             )
 
         return data_loader
@@ -124,14 +131,25 @@ class ModelTrainer:
 
     def __init__(self,
                  outdir: str, config_vals: dict[str, Any], load: bool = False) -> None:
-        self.logger = logging.getLogger(__name__)
+        """Initialize model parameters and variables.
 
+        Arguments
+        ---------
+        outdir:         Location on file where model results will be saved.
+        config_vals:    Parsed model parameter values provided by the user.
+        load:           Load model from last saved epoch found in this output folder?
+        """
+
+        self.logger = logging.getLogger(__name__)
         self.outdir = os.path.join(outdir, 'out')
+
+        # if we want to load the model from the last epoch saved in this directory...
         if load:
             if not os.path.isdir(self.outdir):
                 raise ValueError(f"Cannot use --load with directory `{outdir}` which "
                                  f"has no default output folder `{self.outdir}`!")
 
+            # ...find the last saved epoch, and tell the model to load the model from it
             last_epoch = ModelAnalyzer.get_last_cached_epoch(self.outdir)
             if last_epoch == -2:
                 raise ValueError(
@@ -143,13 +161,16 @@ class ModelTrainer:
 
         self.configs = TrainingConfigurations(**config_vals)
 
-        # take care of existing output directories
+        # take care of existing output directories; if we are loading from a saved
+        # checkpoint then we want to just use the existing `out/` folder...
         if os.path.exists(self.outdir):
             if ('load' in config_vals
                     and os.path.dirname(config_vals['load']) == self.outdir):
                 self.logger.info("Reusing existing output directory "
                                  "containing loaded checkpoint.")
 
+            # ...otherwise, check if the existing directory looks like cryoDRGN
+            # experiment output and rename it `out-old_.../`
             else:
                 old_cfgs = self.load_configs(self.outdir)
                 if old_cfgs:
@@ -176,7 +197,7 @@ class ModelTrainer:
                     )
 
                     newdir = os.path.join(outdir, f"old-out_{new_id}_{train_lbl}")
-                    shutil.copytree(self.outdir, newdir)
+                    shutil.move(self.outdir, newdir)
                     self.logger.warning(
                         f"Output directory `out/` already exists here!."
                         f"Renaming the old one to `{os.path.basename(newdir)}`."
@@ -186,6 +207,7 @@ class ModelTrainer:
                     self.logger.info("Using existing output directory which does "
                                      "not yet contain any drgnai output!.")
 
+        # create the output folder for model results and log file for model training
         os.makedirs(self.outdir, exist_ok=True)
         self.logger.addHandler(logging.FileHandler(
             os.path.join(self.outdir, "training.log")))
