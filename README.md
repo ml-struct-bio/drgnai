@@ -22,7 +22,7 @@ provided below.
  - Always save last epoch
  - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
    instead of just `out_old/`
- - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai-internal/issues/123) found in previous version
+ - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai/issues/8) found in previous version (v1.0.1-beta); rolling back version numbers
 
 
 ### New in Version 0.2.2-beta ###
