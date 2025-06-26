@@ -199,7 +199,7 @@ class ModelTrainer:
                     newdir = os.path.join(outdir, f"old-out_{new_id}_{train_lbl}")
                     shutil.move(self.outdir, newdir)
                     self.logger.warning(
-                        f"Output directory `out/` already exists here!."
+                        f"Output directory `out/` already exists here! "
                         f"Renaming the old one to `{os.path.basename(newdir)}`."
                     )
 
@@ -212,14 +212,38 @@ class ModelTrainer:
         self.logger.addHandler(logging.FileHandler(
             os.path.join(self.outdir, "training.log")))
 
-        n_gpus = torch.cuda.device_count()
-        self.logger.info(f"Number of available gpus: {n_gpus}")
-        self.n_prcs = max(n_gpus, 1)
-
-        self.batch_size_known_poses = (
-                self.configs.batch_size_known_poses * self.n_prcs)
-        self.batch_size_hps = self.configs.batch_size_hps * self.n_prcs
-        self.batch_size_sgd = self.configs.batch_size_sgd * self.n_prcs
+        # Parallelize training across GPUs if --multigpu config option is selected
+        gpu_count = torch.cuda.device_count()
+        if self.configs.multigpu and gpu_count > 1:
+            self.n_prcs = int(gpu_count)
+            self.logger.info(f"Using {gpu_count} GPUs!")
+            if self.configs.batch_size_known_poses is not None:
+                new_batch_size = self.configs.batch_size_known_poses * self.n_prcs
+                self.logger.info(
+                    f"Increasing batch size for known poses to {new_batch_size}"
+                )
+                self.configs.batch_size_known_poses = new_batch_size
+            if self.configs.batch_size_hps is not None:
+                new_batch_size = self.configs.batch_size_hps * self.n_prcs
+                self.logger.info(f"Increasing batch size for HPS to {new_batch_size}")
+                self.configs.batch_size_hps = new_batch_size
+            if self.configs.batch_size_sgd is not None:
+                new_batch_size = self.configs.batch_size_sgd * self.n_prcs
+                self.logger.info(f"Increasing batch size for SGD to {new_batch_size}")
+                self.configs.batch_size_sgd = new_batch_size
+        elif self.configs.multigpu:
+            self.n_prcs = 1
+            self.logger.warning(
+                f"--multigpu selected, but only {gpu_count} GPUs detected!"
+            )
+        elif gpu_count > 1:
+            self.n_prcs = 1
+            self.logger.warning(
+                f"Using one GPU in spite of {gpu_count} available GPUs "
+                f"because --multigpu is not being used!"
+            )
+        else:
+            self.n_prcs = 1
 
         np.random.seed(self.configs.seed)
         torch.manual_seed(self.configs.seed)
@@ -256,16 +280,31 @@ class ModelTrainer:
 
         # load the particles
         self.logger.info("Creating dataset")
+
+        if self.configs.norm_mean is not None and self.configs.norm_std is not None:
+            data_norm = (self.configs.norm_mean, self.configs.norm_std)
+        elif self.configs.norm_mean is not None:
+            data_norm = (self.configs.norm_mean, 1.0)
+        elif self.configs.norm_std is not None:
+            data_norm = (0.0, self.configs.norm_std)
+        else:
+            data_norm = None
+        if data_norm is not None:
+            self.logger.info(
+                f"Manually overriding data normalization: (mean, std) = {data_norm}"
+            )
+
         if self.configs.fast_dataloading:
             if not self.configs.subtomogram_averaging:
                 self.data = dataset_fast.ImageDataset(
                     self.configs.particles, ind=self.index,
                     max_threads=self.configs.max_threads,
+                    invert_data=self.configs.invert_data,
                     lazy=True, poses_gt_pkl=self.configs.pose,
                     resolution_input=self.configs.resolution_encoder,
                     window_r=self.configs.window_radius_gt_real,
                     datadir=self.configs.datadir,
-                    no_trans=self.configs.no_trans
+                    no_trans=self.configs.no_trans, norm=data_norm
                     )
 
             else:
@@ -275,21 +314,24 @@ class ModelTrainer:
                     window_r=self.configs.window_radius_gt_real,
                     datadir=self.configs.datadir,
                     max_threads=self.configs.max_threads,
+                    invert_data=self.configs.invert_data,
                     dose_per_tilt=self.configs.dose_per_tilt,
                     device=self.device,
                     poses_gt_pkl=self.configs.pose,
                     tilt_axis_angle=self.configs.tilt_axis_angle,
-                    ind=self.index, no_trans=self.configs.no_trans
+                    ind=self.index, no_trans=self.configs.no_trans, norm=data_norm
                     )
 
         else:
             self.data = dataset.MRCData(
                 self.configs.particles, max_threads=self.configs.max_threads,
                 ind=self.index, lazy=self.configs.lazy,
+                invert_data=self.configs.invert_data,
                 relion31=self.configs.relion31, poses_gt_pkl=self.configs.pose,
                 resolution_input=self.configs.resolution_encoder,
                 window_r=self.configs.window_radius_gt_real,
-                datadir=self.configs.datadir, no_trans=self.configs.no_trans
+                datadir=self.configs.datadir, no_trans=self.configs.no_trans,
+                norm=data_norm
                 )
 
         self.n_particles_dataset = self.data.N
@@ -530,11 +572,11 @@ class ModelTrainer:
 
         # dataloaders
         self.data_generator_pose_search = self.make_dataloader(
-            batch_size=self.batch_size_hps)
+            batch_size=self.configs.batch_size_hps)
         self.data_generator = self.make_dataloader(
-            batch_size=self.batch_size_known_poses)
+            batch_size=self.configs.batch_size_known_poses)
         self.data_generator_latent_optimization = self.make_dataloader(
-            batch_size=self.batch_size_sgd)
+            batch_size=self.configs.batch_size_sgd)
 
         # save configurations
         self.configs.write(os.path.join(self.outdir, 'drgnai-configs.yaml'),
@@ -760,7 +802,7 @@ class ModelTrainer:
                 if self.current_epoch_particles_count > n_max_particles:
                     break
 
-            total_loss = self.cur_loss / n_max_particles
+            total_loss = self.cur_loss / self.current_epoch_particles_count
             self.logger.info(f"# =====> SGD Epoch: {self.epoch} "
                              f"finished in {dt.now() - te}; "
                              f"total loss = {format(total_loss, '.6f')}")
@@ -1019,6 +1061,7 @@ class ModelTrainer:
                 *in_dict['y'].shape[0:2])
 
         out_dict = self.model(in_dict)
+
         self.run_times['encoder'].append(
             torch.mean(out_dict['time_encoder'].cpu())
             if self.configs.verbose_time else 0.
@@ -1219,12 +1262,17 @@ class ModelTrainer:
         if hasattr(self.model, 'conf_table'):
             self.model.conf_table.eval()
 
+        # For heterogeneous models reconstruct the volume at the latent coordinates
+        # of the image whose embedding is closest to the mean of all embeddings
         if self.configs.z_dim > 0:
+            mean_z = np.mean(self.predicted_conf, axis=0)
+            distances = np.linalg.norm(self.predicted_conf - mean_z, axis=1)
+            closest_idx = np.argmin(distances)
             zval = self.predicted_conf[0].reshape(-1)
         else:
             zval = None
 
-        vol = -1. * self.model.eval_volume(self.data.norm, zval=zval)
+        vol = self.model.eval_volume(self.data.norm, zval=zval)
         mrc.write(out_mrc, vol.astype(np.float32))
 
     # TODO: weights -> model and reconstruct -> volume for output labels?

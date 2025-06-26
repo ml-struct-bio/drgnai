@@ -92,6 +92,10 @@ def run_cryodrgn_ai() -> None:
     train_parser.set_defaults(func=train_experiment)
 
     train_parser.add_argument(
+        '--multigpu', action='store_true',
+        help="use multiple GPUs for training (default: False)",
+        )
+    train_parser.add_argument(
         '--no-analysis', action='store_true',
         help="just do the training stage",
         )
@@ -305,6 +309,9 @@ def setup_experiment(args) -> dict:
             raise ValueError(f"Given config parameter `{cfg_key}` is not a "
                              f"valid configuration parameter!{close_str}")
 
+    if hasattr(args, 'multigpu') and args.multigpu:
+        configs['multigpu'] = True
+
     _ = TrainingConfigurations(**configs)
     os.makedirs(os.path.join(args.outdir, 'out'), exist_ok=True)
     with open(configs_file, 'w') as f:
@@ -333,6 +340,8 @@ def analyze_experiment(args) -> None:
         fld.name: (getattr(args, fld.name) if hasattr(args, fld.name) else fld.default)
         for fld in AnalysisConfigurations.fields() if fld.name != 'quick_configs'
         }
+    if "invert_data" in train_configs:
+        anlz_configs["invert"] = train_configs["invert_data"]
 
     utils._verbose = False
     analyzer = ModelAnalyzer(os.path.join(args.outdir, 'out'),

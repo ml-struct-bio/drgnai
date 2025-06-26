@@ -52,7 +52,7 @@ def test_no_seed(configs_outdir):
              **{'particles': os.path.join(DATA_DIR, "toy_projections.mrcs"),
                 'ctf': os.path.join(DATA_DIR, "test_ctf.pkl"), 'ind': 15,
                 'n_imgs_pose_search': 30,  'epochs_sgd': 2,
-                't_extent': 4.0, 't_n_grid': 2,
+                't_extent': 4.0, 't_n_grid': 2, "invert_data": False,
                 'z_dim': 4, 'seed': 1701, 'log_heavy_interval': 2,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
@@ -105,6 +105,7 @@ def test_small_dataset_and_load(configs_outdir):
                 'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"), 'ind': ind,
                 'n_imgs_pose_search': 10, 'epochs_sgd': 3, 'seed': 555,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 5,
+                'invert_data': False,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'abinit',
@@ -151,6 +152,7 @@ class TestSetupIntegration:
                 'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"),
                 'n_imgs_pose_search': 10, 'seed': 555,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 2,
+                'norm_mean': 0.0, 'norm_std': 2.0,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'abinit',
@@ -179,7 +181,7 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.4.pkl').exists()
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 10.572
+        assert configs_outdir.output_hash(5) == 5.689
 
     def test_auto_load(self, configs_outdir):
         """Run some of the same epochs first; then use auto-restart to do the rest."""
@@ -213,7 +215,7 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'weights.6.pkl').exists()
         assert (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 10.572
+        assert configs_outdir.output_hash(5) == 5.689
 
 
 @pytest.mark.parametrize(
@@ -223,7 +225,7 @@ class TestHomogeneousTrain:
                 'ctf': os.path.join(DATA_DIR, "hand.5_ctf.pkl"),
                 'n_imgs_pose_search': 10, 'epochs_sgd': 3,
                 't_extent': 4.0, 't_n_grid': 2, 'z_dim': 4,
-                'seed': 7171, 'log_heavy_interval': 1,
+                'invert_data': False, 'seed': 7171, 'log_heavy_interval': 1,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'abinit',
@@ -292,7 +294,7 @@ class TestHeterogeneousTrain:
                 'pose': os.path.join(DATA_DIR, "toy_rot_trans.pkl"),
                 'ind': 20, 'n_imgs_pose_search': 40, 'n_imgs_pretrain': 40,
                 'epochs_sgd': 5, 't_extent': 4.0, 't_n_grid': 2, 'z_dim': zdim,
-                'seed': 307, 'log_heavy_interval': 5,
+                'invert_data': False, 'seed': 307, 'log_heavy_interval': 5,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'fixed',
@@ -330,6 +332,7 @@ class TestFixedPoses:
                 'ind': os.path.join(DATA_DIR, "hand-ind3.pkl"),
                 'n_imgs_pose_search': 6, 'epochs_sgd': 5, 'seed': 55,
                 't_extent': 4.0, 't_n_grid': 2, 'log_heavy_interval': 1,
+                'invert_data': False,
                 'quick_config': {'capture_setup': 'spa',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'abinit',
@@ -363,7 +366,7 @@ class TestIndices:
                 'datadir': os.path.join(DATA_DIR, "tilts"),
                 'n_tilts': 1, 'dose_per_tilt': 2.93, 'angle_per_tilt': 3.0,
                 'n_imgs_pose_search': 20, 'epochs_sgd': 3, 'seed': 2345,
-                'lazy': lazy_load,
+                'invert_data': False, 'lazy': lazy_load,
                 'quick_config': {'capture_setup': 'et',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'abinit',
@@ -397,6 +400,7 @@ class TestTilts:
                 'log_heavy_interval': 1, 'epochs_sgd': 8, 'seed': 78,
                 'n_tilts': 1, 'dose_per_tilt': 2.93, 'angle_per_tilt': 3.0,
                 'use_gt_trans': True, 'n_imgs_pretrain': 40, 'lr': 0.015,
+                'invert_data': False,
                 'quick_config': {'capture_setup': 'et',
                                  'conf_estimation': 'autodecoder',
                                  'pose_estimation': 'refine',

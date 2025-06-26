@@ -17,6 +17,8 @@ def hash_mat(mat) -> float:
     """Get quick hash value for a two-dimensional array."""
     mat_ydim = mat.shape[1]
     rep_vec = np.tile([1, -1], mat_ydim // 2 + mat_ydim % 2)[:mat_ydim]
+    if isinstance(mat, torch.Tensor):
+        mat = mat.cpu()
 
     return (mat @ rep_vec).sum()
 

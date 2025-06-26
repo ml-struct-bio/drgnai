@@ -192,6 +192,9 @@ class TrainingConfigurations(_BaseConfigurations):
     labels: str = None
     relion31: bool = False
     no_trans: bool = False
+    invert_data: bool = True
+    norm_mean: float = None
+    norm_std: float = None
 
     # initialization
     use_gt_poses: bool = False
@@ -212,9 +215,9 @@ class TrainingConfigurations(_BaseConfigurations):
     max_threads: int = 16
     fast_dataloading: bool = False
     shuffler_size: int = 32768
-    batch_size_known_poses: int = 32
+    batch_size_known_poses: int = 16
     batch_size_hps: int = 8
-    batch_size_sgd: int = 256
+    batch_size_sgd: int = 32
 
     # optimizers
     hypervolume_optimizer_type: str = "adam"
@@ -294,6 +297,7 @@ class TrainingConfigurations(_BaseConfigurations):
     # others
     color_palette: str = None
     test_installation: bool = False
+    multigpu: bool = False
 
     quick_configs = OrderedDict(
         {
@@ -457,7 +461,7 @@ class AnalysisConfigurations(_BaseConfigurations):
     pc: int = 2
     n_per_pc: int = 10
     ksample: int = 20
-    invert: bool = True
+    invert: bool = False
     sample_z_idx: int = None
     trajectory_1d: int = None
     direct_traversal_txt: str = None

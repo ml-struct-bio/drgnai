@@ -1,0 +1,9 @@
+epochs_sgd: 3
+n_imgs_pose_search: 2000
+hypervolume_dim: 128
+log_heavy_interval: 1
+pe_dim: 32
+no_trans: true
+t_n_grid: 1
+lr: 0.01
+seed: 999

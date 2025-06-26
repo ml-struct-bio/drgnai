@@ -13,7 +13,18 @@ including an overview and walkthrough of DRGN-AI installation, training and anal
 provided below.
 
 
-## New in Version 0.3.1-beta ##
+## New in Version 0.3.2-beta ##
+
+ - Add `invert_data` configuration parameter for easier handling of datasets like 50S (EMPIAR-10076)
+ - Add `data_norm_mean` and `data_norm_std` configuration parameters for manual override of image dataset normalization
+ - Updating default behavior to use only one GPU no matter how many are available; add `--multigpu` to `drgnai train`
+   as well as `multigpu` configuration parameter to manually activate multi-GPU training
+ - Using volumes reconstructed at the image closest to the centroid of all images in the latent space at each epoch
+   instead of the first image in the dataset for heterogeneous reconstruction
+ - Fixing loss logging during pretraining; better logs for how many GPUs are being used
+
+
+### New in Version 0.3.1-beta ###
 
  - Add `--datadir` to `drgnai setup`
  - Remove `outdir` from the `config.yaml`
@@ -22,14 +33,7 @@ provided below.
  - Always save last epoch
  - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
    instead of just `out_old/`
- - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai/issues/8) found in previous version (v1.0.1-beta); rolling back version numbers
-
-
-### New in Version 0.2.2-beta ###
-
- - `drgnai filter` interface for interactive filtering of particles
- - Support for `$DRGNAI_DATASETS` dataset catalogue
- - Cleaner tracking of configuration specifications
+ - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai-internal/issues/123) found in previous version
 
 
 ## Installation ##
@@ -73,11 +77,11 @@ First, use the `drgnai setup` tool to create an output directory and a configura
 
 ```
 drgnai setup your_outdir --particles /my_data/particles.mrcs --ctf /my_data/ctf.pkl \
-                     --capture-setup spa --conf-estimation autodecoder \
-                     --pose-estimation abinit --reconstruction-type het                               
+                         --capture-setup spa --conf-estimation autodecoder \
+                         --pose-estimation abinit --reconstruction-type het                               
 ```
 
-This command will create an output directory called `your_outdir` and a configuration file `your_outdir/configs.yaml`:
+This command will create an output directory called `your_outdir/` and a configuration file `your_outdir/configs.yaml`:
 
 ```yaml
 particles: /my_data/particles.mrcs
@@ -97,10 +101,10 @@ learning rate of the reconstruction model.
 
 ### Reconstruction and analysis ###
 
-After setup is complete, run the experiment using `drgnai train your_outdir`. 
+After setup is complete, run the experiment using `drgnai train your_outdir/`. 
 
 ```
-drgnai train your_outdir
+drgnai train your_outdir/
 ```
 
 `drgnai` will save the outputs of training under `your_outdir/out/`.
@@ -111,7 +115,7 @@ You can also run analyses on a particular training epoch instead of the last epo
 Outputs of each analysis will be stored under `your_outdir/out/analysis_<epoch>/`.
 
 ```
-drgnai analyze your_outdir --epoch 25
+drgnai analyze your_outdir/ --epoch 25
 ```
 
 
@@ -143,8 +147,7 @@ experiment. However, only the most important parameters are available through th
 
 Note that each argument can be specified using a non-ambiguous prefix as a shortcut 😃, e.g.
 ```
-drgnai setup out-dir --dataset 50S_128 --cap spa --conf autodecoder \
-                     --pose-estim abinit --reconstr het
+drgnai setup out-dir --dataset 50S_128 --cap spa --conf autodecoder --pose-estim abinit --reconstr het
 ```
 
 To change the other configuration parameters, the `configs.yaml` file must be edited directly before the experiment
@@ -156,23 +159,27 @@ is run. For a full overview of how to configure the parameters used in the DRGN-
 
 ```
 @article{drgnai,
-  title    = "Revealing biomolecular structure and motion with neural ab initio
-              {cryo-EM} reconstruction",
-  author   = "Levy, Axel and Grzadkowski, Michal and Poitevin, Frederic and
-              Vallese, Francesca and Clarke, Oliver B and Wetzstein, Gordon and
-              Zhong, Ellen D",
-  journal  = "bioRxiv",
-  pages    = "2024.05.30.596729",
-  month    =  jun,
-  year     =  2024,
-  language = "en"
+  title = "CryoDRGN-AI: neural ab initio reconstruction of challenging cryo-EM and cryo-ET datasets",
+  author = "Levy, Axel and Raghu, Rishwanth and Feathers, Ryan and Grzadkowski, Michal and Poitevin, Frederic and
+            Johnston, Jake D, Vallese, Francesca and Clarke, Oliver B and Wetzstein, Gordon and Zhong, Ellen D",
+  journal = "Nature Methods",
+  doi = 10.1038/s41592-025-02720-4,
+  url = nature.com/articles/s41592-025-02720-4,
+  month = jun,
+  year = 2025,
 }
 ```
 
 
 ## Previous versions ##
 
-Below are major past releases of cryoDRGN with the features introduced in each:
+Past releases of cryoDRGN are listed below with the features introduced in each:
+
+### New in Version 0.2.2-beta ###
+
+ - `drgnai filter` interface for interactive filtering of particles
+ - Support for `$DRGNAI_DATASETS` dataset catalogue
+ - Cleaner tracking of configuration specifications
 
 ### Version 0.2.0-beta ###
 

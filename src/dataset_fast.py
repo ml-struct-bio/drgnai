@@ -206,7 +206,13 @@ class ImageDataset(data.Dataset):
                 f"ImageDataset returning images for {len(index)} indices ({index[0]}..{index[-1]})"
             )
 
-        return r_particles, particles, r_tilt, tilt, index
+        return {
+            "y_real": r_particles,
+            "y": particles,
+            "r_tilt": r_tilt,
+            "tilt": tilt,
+            "index": index
+        }
 
     def get_slice(self, start: int, stop: int):
         assert self.tilt_src is None
