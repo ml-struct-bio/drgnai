@@ -1,11 +1,6 @@
-# :dragon::robot: CryoDRGN-AI: _Ab initio_ cryo-EM reconstruction #
+# :dragon::robot: CryoDRGN-AI: _Ab initio_ cryo-EM and cryo-ET reconstruction #
 
-CryoDRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction.
-The method leverages the expressive representation capacity of neural models and implements a
-two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot
-reconstruction of noisy, large cryo-EM datasets. 
-
-Note: We are currently merging this standalone version of cryoDRGN-AI into the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software package. Please check back for updates. 
+CryoDRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM and cryo-ET subtomogram reconstruction.
 
 ## Documentation ##
 
@@ -13,8 +8,16 @@ The latest detailed documentation for CryoDRGN-AI is available [on gitbook](http
 including an overview and walkthrough of CryoDRGN-AI installation, training and analysis. A brief quick start is
 provided below.
 
+## Latest News! ##
 
-## New in Version 0.3.2-beta ##
+Note: We are currently merging this standalone cryoDRGN-AI github repository into the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software package. CryoDRGN-AI will be available in the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software's next major release. Please check back for updates.
+
+  - June 2025: CryoDRGN-AI is now published in [Nature Methods](https://www.nature.com/articles/s41592-025-02720-4)!
+  - June 2025: Version 0.3.2-beta release with usability improvements.
+  - April 2025: Updated name from DRGN-AI to cryoDRGN-AI in our [preprint](https://www.biorxiv.org/content/10.1101/2024.05.30.596729v3).
+  - Dec 2024: Ab initio reconstruction of cryo-ET subtomograms is now described in our preprint.
+
+### New in Version 0.3.2-beta ###
 
  - Add `invert_data` configuration parameter for easier handling of datasets like 50S (EMPIAR-10076)
  - Add `data_norm_mean` and `data_norm_std` configuration parameters for manual override of image dataset normalization
@@ -24,23 +27,9 @@ provided below.
    instead of the first image in the dataset for heterogeneous reconstruction
  - Fixing loss logging during pretraining; better logs for how many GPUs are being used
 
-
-### New in Version 0.3.1-beta ###
-
- - Add `--datadir` to `drgnai setup`
- - Remove `outdir` from the `config.yaml`
- - Allow arbitrary config parameters to be passed to `drgnai setup`
- - Add `--load` in `drgnai train` for auto-restart of experiments
- - Always save last epoch
- - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
-   instead of just `out_old/`
- - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai-internal/issues/123) found in previous version
-
-
 ## Installation ##
 
-We recommend installing CryoDRGN-AI in a clean conda environment — first clone the latest stable version available in 
-the git repository, and then use `pip` to install the package from the source code:
+We recommend installing CryoDRGN-AI in a clean conda environment:
 
     (base) $ conda create --name drgnai python=3.9
     (base) $ conda activate drgnai
@@ -57,19 +46,19 @@ Installation was successful!
 
 You may also choose to define an environment variable `$DRGNAI_DATASETS` in your bash environment, which will allow you
 to point to a file listing locations of input files and dataset labels to use as shortcuts. For more information, 
-see our [detailed user guide](https://ez-lab.gitbook.io/drgn-ai/).
+see our [user guide](https://ez-lab.gitbook.io/drgn-ai/).
 
 
 ## Usage ##
 
 This package installs the `drgnai` command line tool for running experiments, which contains three key subcommands:
 
- - `drgnai setup` creates the experiment folder and configuration parameter file
+ - `drgnai setup` creates the experiment directory and configuration file
  - `drgnai train` trains and analyzes a reconstruction model
- - `drgnai analyze` performs specific analyses in addition to those done by `train`
+ - `drgnai analyze` performs additional analyses of the trained model
 
 As cryo-EM reconstruction experiments are usually computationally intensive, `train` especially is most
-commonly used within a script submitted to a job scheduling system on a high-performance compute cluster.
+commonly used within a script submitted to a high-performance compute cluster.
 
 
 ### Setup ###
@@ -139,7 +128,7 @@ output directory and 6565 is an arbitrary port number.
 The behavior of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
 experiment. However, only the most important parameters are available through this interface:
 
- - `--capture-setup` “spa” for single-particle analysis (default, only mode currently available)
+ - `--capture-setup` “spa” for single-particle analysis (default)
  - `--reconstruction-type` “het” for heterogeneous or “homo” for homogeneous (default)
  - `--pose-estimation` “abinit” for no initialization (default), “refine” to refine provided poses by gradient
                        descent or “fixed” to use provided poses without refinement
@@ -173,6 +162,17 @@ is run. For a full overview of how to configure the parameters used in the CryoD
 
 
 ## Previous versions ##
+
+### Version 0.3.1-beta ###
+
+ - Add `--datadir` to `drgnai setup`
+ - Remove `outdir` from the `config.yaml`
+ - Allow arbitrary config parameters to be passed to `drgnai setup`
+ - Add `--load` in `drgnai train` for auto-restart of experiments
+ - Always save last epoch
+ - Renaming of old experiments in the same output folder as `old-out_000_fixed-homo/`, `old-out_001_abinit-het4/`, `...`
+   instead of just `out_old/`
+ - Fixing pose search [bug](https://github.com/ml-struct-bio/drgnai-internal/issues/123) found in previous version
 
 ### Version 0.2.2-beta ###
 
