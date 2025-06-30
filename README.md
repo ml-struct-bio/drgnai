@@ -1,15 +1,16 @@
-# :dragon::robot: DRGN-AI: _Ab initio_ cryo-EM reconstruction #
+# :dragon::robot: CryoDRGN-AI: _Ab initio_ cryo-EM reconstruction #
 
-DRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction.
+CryoDRGN-AI is a neural network-based algorithm for _ab initio_ heterogeneous cryo-EM reconstruction.
 The method leverages the expressive representation capacity of neural models and implements a
 two-stage joint inference procedure of poses and heterogeneous conformational states to enable single-shot
 reconstruction of noisy, large cryo-EM datasets. 
 
+Note: We are currently merging this standalone version of cryoDRGN-AI into the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software package. Please check back for updates. 
 
 ## Documentation ##
 
-The latest detailed documentation for DRGN-AI is available [on gitbook](https://ez-lab.gitbook.io/drgn-ai/), 
-including an overview and walkthrough of DRGN-AI installation, training and analysis. A brief quick start is
+The latest detailed documentation for CryoDRGN-AI is available [on gitbook](https://ez-lab.gitbook.io/drgn-ai/), 
+including an overview and walkthrough of CryoDRGN-AI installation, training and analysis. A brief quick start is
 provided below.
 
 
@@ -38,7 +39,7 @@ provided below.
 
 ## Installation ##
 
-We recommend installing DRGN-AI in a clean conda environment — first clone the latest stable version available in 
+We recommend installing CryoDRGN-AI in a clean conda environment — first clone the latest stable version available in 
 the git repository, and then use `pip` to install the package from the source code:
 
     (base) $ conda create --name drgnai python=3.9
@@ -73,7 +74,7 @@ commonly used within a script submitted to a job scheduling system on a high-per
 
 ### Setup ###
 
-First, use the `drgnai setup` tool to create an output directory and a configuration file for DRGN-AI. 
+First, use the `drgnai setup` tool to create an output directory and a configuration file for CryoDRGN-AI. 
 
 ```
 drgnai setup your_outdir --particles /my_data/particles.mrcs --ctf /my_data/ctf.pkl \
@@ -151,14 +152,14 @@ drgnai setup out-dir --dataset 50S_128 --cap spa --conf autodecoder --pose-estim
 ```
 
 To change the other configuration parameters, the `configs.yaml` file must be edited directly before the experiment
-is run. For a full overview of how to configure the parameters used in the DRGN-AI model, see the
+is run. For a full overview of how to configure the parameters used in the CryoDRGN-AI model, see the
 [docs](https://ez-lab.gitbook.io/drgn-ai/configuration).
 
 
 ## Reference ##
 
 ```
-@article{drgnai,
+@article{cryodrgnai,
   title = "CryoDRGN-AI: neural ab initio reconstruction of challenging cryo-EM and cryo-ET datasets",
   author = "Levy, Axel and Raghu, Rishwanth and Feathers, Ryan and Grzadkowski, Michal and Poitevin, Frederic and
             Johnston, Jake D, Vallese, Francesca and Clarke, Oliver B and Wetzstein, Gordon and Zhong, Ellen D",
@@ -173,9 +174,7 @@ is run. For a full overview of how to configure the parameters used in the DRGN-
 
 ## Previous versions ##
 
-Past releases of cryoDRGN are listed below with the features introduced in each:
-
-### New in Version 0.2.2-beta ###
+### Version 0.2.2-beta ###
 
  - `drgnai filter` interface for interactive filtering of particles
  - Support for `$DRGNAI_DATASETS` dataset catalogue
