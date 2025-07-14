@@ -1,12 +1,12 @@
 """Parsing and storing configuration parameters for reconstruction and analysis models.
 
 This module contains a data class hierarchy for representing user-specified parameter
-values for models used in DRGN-AI volume reconstruction as well as in directing the
+values for models used in cryoDRGN-AI volume reconstruction as well as in directing the
 post-analyses of these models' outputs. These data classes are used in training and
 analyses engines such as `reconstruct.ModelTrainer` (usually as a `.config` attribute)
 to store such values in an easily indexed and documented fashion.
 
-See https://docs.python.org/3.9/library/dataclasses.html
+See https://docs.python.org/3.10/library/dataclasses.html
 for more information on Python dataclasses.
 
 """
@@ -26,9 +26,9 @@ import difflib
 class _BaseConfigurations(ABC):
     """Base class for sets of model configuration parameters."""
 
-    # a parameter belongs to this set if and only if it has a default value
+    # A parameter belongs to this set if and only if it has a default value
     # defined in this set of data class attributes
-    # note that ordering makes e.g. printing easier for user viewing
+    # Note that ordering makes e.g. printing easier for user viewing
     verbose: int = 0
     seed: int = None
     quick_config: OrderedDict = field(default_factory=OrderedDict)
@@ -53,7 +53,7 @@ class _BaseConfigurations(ABC):
                 f"for parameter `{this_field.name}`"
             )
 
-        # special parameter used to test whether the package was installed correctly
+        # Special parameter used to test whether the package was installed correctly
         if self.test_installation:
             print("Installation was successful!")
             sys.exit()
@@ -63,7 +63,7 @@ class _BaseConfigurations(ABC):
                 f"Given verbosity `{self.verbose}` is not a positive integer!"
             )
 
-        # if the user didn't pick a random seed we will pick one for them
+        # If the user didn't pick a random seed we will pick one for them
         # to ensure reproducibility
         if self.seed is None:
             self.seed = np.random.randint(0, 10000)
@@ -74,7 +74,7 @@ class _BaseConfigurations(ABC):
                 f"given `{self.seed}` instead!"
             )
 
-        # process the quick_config parameter
+        # Process the quick_config parameter used to access configuration shortcuts
         if self.quick_config is not MISSING:
             for cfg_k, cfg_val in self.quick_config.items():
                 if cfg_k not in self.quick_configs:
@@ -95,7 +95,7 @@ class _BaseConfigurations(ABC):
                             f"in this classes quick_config entry `{cfg_k}:{cfg_val}`!"
                         )
 
-                    # parameters given elsewhere in configs have priority
+                    # Parameters given elsewhere in configs have priority
                     if getattr(self, par_k) == getattr(type(self), par_k):
                         setattr(self, par_k, par_value)
 
@@ -155,7 +155,7 @@ class _BaseConfigurations(ABC):
                         else:
                             cfgs[cfg_key] = fld.type(eval(cfg_val))
 
-                        # accounting for parameters like `ind` which can be paths
+                        # Accounting for parameters like `ind` which can be paths
                         # to files as well as integers
                         if isinstance(cfgs[cfg_key], str) and cfgs[cfg_key].isnumeric():
                             cfgs[cfg_key] = int(cfgs[cfg_key])
@@ -181,7 +181,7 @@ class _BaseConfigurations(ABC):
 class TrainingConfigurations(_BaseConfigurations):
     """Configuration parameters for training DRGN-AI volume reconstruction models."""
 
-    # input datasets
+    # Datasets used as input and any final pre-processing steps
     particles: str = None
     ctf: str = None
     pose: str = None
@@ -196,19 +196,19 @@ class TrainingConfigurations(_BaseConfigurations):
     norm_mean: float = None
     norm_std: float = None
 
-    # initialization
+    # Model initialization from a previous checkpoint
     use_gt_poses: bool = False
     refine_gt_poses: bool = False
     use_gt_trans: bool = False
     load: str = None
     initial_conf: str = None
 
-    # logging and verbosity
+    # Logging and verbosity used to track the progress of the training process
     log_interval: int = 10000
     log_heavy_interval: int = 5
     verbose_time: bool = False
 
-    #data loading
+    # Data loading
     shuffle: bool = True
     lazy: bool = False
     num_workers: int = 2
@@ -219,7 +219,7 @@ class TrainingConfigurations(_BaseConfigurations):
     batch_size_hps: int = 8
     batch_size_sgd: int = 32
 
-    # optimizers
+    # Optimizers
     hypervolume_optimizer_type: str = "adam"
     pose_table_optimizer_type: str = "adam"
     conf_table_optimizer_type: str = "adam"
@@ -230,12 +230,12 @@ class TrainingConfigurations(_BaseConfigurations):
     lr_conf_encoder: float = 1.0e-4
     wd: float = 0.0
 
-    # scheduling
+    # Scheduling
     n_imgs_pose_search: int = 500000
     epochs_sgd: int = 100
     pose_only_phase: int = 0
 
-    # masking
+    # Masking
     output_mask: str = "circ"
     add_one_frequency_every: int = 100000
     n_frequencies_per_epoch: int = 10
@@ -243,12 +243,12 @@ class TrainingConfigurations(_BaseConfigurations):
     window_radius_gt_real: float = 0.85
     l_start_fm: int = 12
 
-    # loss
+    # Loss
     beta_conf: float = 0.0
     trans_l1_regularizer: float = 0.0
     l2_smoothness_regularizer: float = 0.0
 
-    # conformations
+    # Z-latent-space conformations
     variational_het: bool = False
     z_dim: int = 4
     std_z_init: float = 0.1
@@ -258,7 +258,7 @@ class TrainingConfigurations(_BaseConfigurations):
     kernel_size_cnn: int = 3
     resolution_encoder: str = None
 
-    # hypervolume
+    # Hypervolume
     explicit_volume: bool = False
     hypervolume_layers: int = 3
     hypervolume_dim: int = 256
@@ -268,11 +268,11 @@ class TrainingConfigurations(_BaseConfigurations):
     hypervolume_domain: str = "hartley"
     pe_type_conf: str = None
 
-    # pre-training
+    # Pre-training
     n_imgs_pretrain: int = 10000
     pretrain_with_gt_poses: bool = False
 
-    # pose search
+    # Pose search
     l_start: int = 12
     l_end: int = 32
     n_iter: int = 4
@@ -284,7 +284,7 @@ class TrainingConfigurations(_BaseConfigurations):
     n_kept_poses: int = 8
     base_healpy: int = 2
 
-    # subtomogram averaging
+    # Subtomogram averaging for tilt-series datasets
     subtomogram_averaging: bool = False
     n_tilts: int = 11
     dose_per_tilt: float = None
@@ -294,10 +294,11 @@ class TrainingConfigurations(_BaseConfigurations):
     tilt_axis_angle: float = 0.0
     dose_exposure_correction: bool = True
 
-    # others
+    # Other parameters
     color_palette: str = None
     test_installation: bool = False
     multigpu: bool = False
+    amp: bool = True
 
     quick_configs = OrderedDict(
         {
@@ -329,7 +330,8 @@ class TrainingConfigurations(_BaseConfigurations):
             }
         )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Check validity of user-given configuration parameters upon initialization."""
         super().__post_init__()
 
         if self.explicit_volume and self.z_dim >= 1:
@@ -400,6 +402,10 @@ class TrainingConfigurations(_BaseConfigurations):
         if self.subtomogram_averaging:
             self.fast_dataloading = True
 
+            if self.dose_per_tilt is None or self.angle_per_tilt is None:
+                raise ValueError("dose_per_tilt and angle_per_tilt must both be "
+                                 "specified for subtomogram averaging!")
+
             # TODO: Implement conformation encoder for subtomogram averaging.
             if self.use_conf_encoder:
                 raise ValueError("Conformation encoder is not implemented "
@@ -411,15 +417,15 @@ class TrainingConfigurations(_BaseConfigurations):
                 raise ValueError("Translation search is not implemented "
                                  "for subtomogram averaging!")
 
-            if self.average_over_tilts and self.n_tilts_pose_search % 2 == 0:
-                raise ValueError("n_tilts_pose_search must be odd "
-                                 "to use average_over_tilts!")
-
             if self.n_tilts_pose_search is None:
                 self.n_tilts_pose_search = self.n_tilts
             if self.n_tilts_pose_search > self.n_tilts:
                 raise ValueError("n_tilts_pose_search must be "
                                  "smaller than n_tilts!")
+            
+            if self.average_over_tilts and self.n_tilts_pose_search % 2 == 0:
+                raise ValueError("n_tilts_pose_search must be odd "
+                                 "to use average_over_tilts!")
 
         if self.use_gt_poses:
             # "poses" include translations

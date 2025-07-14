@@ -35,22 +35,21 @@ from .mask import CircularMask, FrequencyMarchingMask
 class ModelTrainer:
     """An engine for training the DRGN-AI reconstruction model on particle data.
 
-    The two crucial methods of this engine class are the `__init__()` method, in which
+    The two key methods of this engine class are the `__init__()` method, in which
     model parameters and data structures are initialized, and `train()`, in which the
     model is trained in batches over the particle input data.
 
     Attributes
     ----------
     configs (TrainingConfigurations)
-        Values of all parameters controlling the
-        behaviour of the model that can be set by the user.
+        Values of all user-set parameters controlling the behaviour of the model.
 
     outdir (str):   Folder `out/` within the experiment working directory where
                     model results will be saved.
 
     n_particles_dataset (int):  The number of picked particles in the data.
     pretraining (bool):     Whether we are in the pretraining stage.
-    epoch (int):    Which training epoch the model is in.
+    epoch (int):    Which training epoch the model is presently in.
 
     logger (logging.Logger):    Utility for printing and writing information
                                 about the model as it is running.
@@ -92,7 +91,7 @@ class ModelTrainer:
                 )
 
             else:
-                # see https://github.com/zhonge/cryodrgn/pull/221#discussion_r1120711123
+                # See https://github.com/zhonge/cryodrgn/pull/221#discussion_r1120711123
                 # for discussion of why we use BatchSampler, etc.
                 data_loader = DataLoader(
                     self.data, batch_size=None,
@@ -103,7 +102,7 @@ class ModelTrainer:
                                              else None),
                 )
         else:
-            # multiprocessing_context="spawn" slows things down here, so we don't use it
+            # Multiprocessing_context="spawn" slows things down here, so we don't use it
             data_loader = DataLoader(
                 self.data, batch_size=batch_size, sampler=sampler,
                 num_workers=self.configs.num_workers,
@@ -143,7 +142,7 @@ class ModelTrainer:
         self.logger = logging.getLogger(__name__)
         self.outdir = os.path.join(outdir, 'out')
 
-        # if we want to load the model from the last epoch saved in this directory...
+        # If we want to load the model from the last epoch saved in this directory...
         if load:
             if not os.path.isdir(self.outdir):
                 raise ValueError(f"Cannot use --load with directory `{outdir}` which "
@@ -161,7 +160,7 @@ class ModelTrainer:
 
         self.configs = TrainingConfigurations(**config_vals)
 
-        # take care of existing output directories; if we are loading from a saved
+        # Take care of existing output directories; if we are loading from a saved
         # checkpoint then we want to just use the existing `out/` folder...
         if os.path.exists(self.outdir):
             if ('load' in config_vals
@@ -207,7 +206,7 @@ class ModelTrainer:
                     self.logger.info("Using existing output directory which does "
                                      "not yet contain any drgnai output!.")
 
-        # create the output folder for model results and log file for model training
+        # Create the output folder for model results and log file for model training
         os.makedirs(self.outdir, exist_ok=True)
         self.logger.addHandler(logging.FileHandler(
             os.path.join(self.outdir, "training.log")))
@@ -248,19 +247,19 @@ class ModelTrainer:
         np.random.seed(self.configs.seed)
         torch.manual_seed(self.configs.seed)
 
-        # set the device
+        # Set the compute device, using the first available GPU
         self.use_cuda = torch.cuda.is_available()
         self.device = torch.device('cuda:0' if self.use_cuda else 'cpu')
         self.logger.info(f"Use cuda {self.use_cuda}")
 
-        # tensorboard writer
+        # Set uo the Tensorboard writer
         self.summaries_dir = os.path.join(self.outdir, 'summaries')
         os.makedirs(self.summaries_dir, exist_ok=True)
         self.writer = SummaryWriter(self.summaries_dir)
         self.logger.info("Will write tensorboard summaries "
                          f"in {self.summaries_dir}")
 
-        # load the optional index used to filter particles
+        # Load the index used to filter particles, if given
         if self.configs.ind is not None:
             if isinstance(self.configs.ind, int):
                 self.logger.info(f"Keeping {self.configs.ind} particles")
@@ -278,9 +277,7 @@ class ModelTrainer:
         else:
             self.index = None
 
-        # load the particles
         self.logger.info("Creating dataset")
-
         if self.configs.norm_mean is not None and self.configs.norm_std is not None:
             data_norm = (self.configs.norm_mean, self.configs.norm_std)
         elif self.configs.norm_mean is not None:
@@ -306,7 +303,6 @@ class ModelTrainer:
                     datadir=self.configs.datadir,
                     no_trans=self.configs.no_trans, norm=data_norm
                     )
-
             else:
                 self.data = dataset_fast.TiltSeriesData(
                     self.configs.particles,
@@ -321,7 +317,6 @@ class ModelTrainer:
                     tilt_axis_angle=self.configs.tilt_axis_angle,
                     ind=self.index, no_trans=self.configs.no_trans, norm=data_norm
                     )
-
         else:
             self.data = dataset.MRCData(
                 self.configs.particles, max_threads=self.configs.max_threads,
@@ -340,7 +335,7 @@ class ModelTrainer:
                                 else self.data.N)
         self.resolution = self.data.D
 
-        # load ctf
+        # Load contrast transfer function parameters, if given
         if self.configs.ctf is not None:
             self.logger.info(f"Loading ctf params from {self.configs.ctf}")
 
@@ -368,11 +363,10 @@ class ModelTrainer:
         else:
             self.ctf_params = None
 
-        # lattice
         self.logger.info("Building lattice")
         self.lattice = Lattice(self.resolution, extent=0.5, device=self.device)
 
-        # output mask
+        # Set up the output mask
         if self.configs.output_mask == 'circ':
             radius = (self.lattice.D // 2 if self.configs.max_freq is None
                       else self.configs.max_freq)
@@ -388,7 +382,7 @@ class ModelTrainer:
         else:
             raise NotImplementedError
 
-        # pose search
+        # Set up the pose search parameters
         ps_params = None
         self.epochs_pose_search = 0
 
@@ -417,7 +411,7 @@ class ModelTrainer:
                 'average_over_tilts': self.configs.average_over_tilts
                 }
 
-        # cnn
+        # CNN
         cnn_params = {
             'conf': self.configs.use_conf_encoder,
             'depth_cnn': self.configs.depth_cnn,
@@ -425,7 +419,7 @@ class ModelTrainer:
             'kernel_size_cnn': self.configs.kernel_size_cnn
             }
 
-        # conformational encoder
+        # Conformational encoder
         if self.configs.z_dim > 0:
             self.logger.info("Heterogeneous reconstruction with "
                              f"z_dim = {self.configs.z_dim}")
@@ -438,7 +432,7 @@ class ModelTrainer:
             'variational': self.configs.variational_het
             }
 
-        # hypervolume
+        # Hypervolume
         hyper_volume_params = {
             'explicit_volume': self.configs.explicit_volume,
             'n_layers': self.configs.hypervolume_layers,
@@ -473,7 +467,7 @@ class ModelTrainer:
             n_tilts_pose_search=self.configs.n_tilts_pose_search
             )
 
-        # initialization from a previous checkpoint
+        # Initialization from a checkpoint saved to file from a previous training run
         if self.configs.load:
             self.logger.info(f"Loading checkpoint from {self.configs.load}")
             checkpoint = torch.load(self.configs.load)
@@ -493,7 +487,7 @@ class ModelTrainer:
         else:
             self.start_epoch = -1
 
-        # move to gpu and parallelize
+        # Move to GPU and parallelize the model if necessary
         self.logger.info(self.model)
         parameter_count = sum(p.numel() for p in self.model.parameters()
                               if p.requires_grad)
@@ -511,7 +505,7 @@ class ModelTrainer:
         self.optimizers = dict()
         self.optimizer_types = dict()
 
-        # hypervolume
+        # Hypervolume
         hyper_volume_params = [{
             'params': list(self.model.hypervolume.parameters())}]
 
@@ -521,7 +515,7 @@ class ModelTrainer:
         self.optimizer_types[
             'hypervolume'] = self.configs.hypervolume_optimizer_type
 
-        # pose table
+        # Pose table
         if not self.configs.use_gt_poses:
             if self.configs.epochs_sgd > 0:
                 pose_table_params = [{
@@ -533,7 +527,7 @@ class ModelTrainer:
                 self.optimizer_types[
                     'pose_table'] = self.configs.pose_table_optimizer_type
 
-        # conformations
+        # Z-latent-space conformations
         if self.configs.z_dim > 0:
             if self.configs.use_conf_encoder:
                 conf_encoder_params = [{
@@ -562,7 +556,7 @@ class ModelTrainer:
 
         self.optimized_modules = []
 
-        # initialization from a previous checkpoint
+        # Complete initialization from a previous checkpoint
         if self.configs.load:
             checkpoint = torch.load(self.configs.load)
 
@@ -570,7 +564,7 @@ class ModelTrainer:
                 self.optimizers[key].load_state_dict(
                     checkpoint['optimizers_state_dict'][key])
 
-        # dataloaders
+        # Data loaders used to iterated over training batches of input images
         self.data_generator_pose_search = self.make_dataloader(
             batch_size=self.configs.batch_size_hps)
         self.data_generator = self.make_dataloader(
@@ -578,13 +572,13 @@ class ModelTrainer:
         self.data_generator_latent_optimization = self.make_dataloader(
             batch_size=self.configs.batch_size_sgd)
 
-        # save configurations
+        # Save configurations within the output directory for future reference
         self.configs.write(os.path.join(self.outdir, 'drgnai-configs.yaml'),
                            data_norm_mean=float(self.data.norm[0]),
                            data_norm_std=float(self.data.norm[1]))
 
         epsilon = 1e-8
-        # booleans
+        # Booleans used to track the current state of the training process
         self.log_latents = False
         self.pose_only = True
         self.pretraining = False
@@ -618,8 +612,7 @@ class ModelTrainer:
                                      if self.configs.n_imgs_pretrain >= 0
                                      else self.n_particles_dataset)
 
-        # placeholders for predicted latent variables,
-        # last input/output batch, losses
+        # Placeholders for predicted latent variables, last input/output batch, losses
         self.in_dict_last = None
         self.y_pred_last = None
 
@@ -640,7 +633,7 @@ class ModelTrainer:
             self.n_particles_dataset)
         self.mask_tilts_seen_at_last_epoch = np.zeros(self.n_tilts_dataset)
 
-        # counters
+        # Counters used to track the progress of the training process
         self.epoch = 0
         self.run_times = {phase: [] for phase in self.run_phases}
         self.current_epoch_particles_count = 0
@@ -648,6 +641,45 @@ class ModelTrainer:
         self.total_particles_count = 0
         self.batch_idx = 0
         self.cur_loss = None
+
+        # Activating Automatic Mixed Precision (AMP) model training through `torch.amp`
+        self.scaler = None
+        if self.configs.amp:
+            if self.configs.pose_table_optimizer_type == "lbfgs":
+                raise ValueError("AMP is not compatible with the lbfgs optimizer!")
+            if (self.data.D-1) % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"image box size {self.data.D-1} is not a multiple of 8!"
+                )
+            if self.configs.z_dim > 0 and self.configs.z_dim % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"{self.configs.z_dim=} is not a multiple of 8!"
+                )
+            if self.configs.batch_size_hps % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"{self.configs.batch_size_hps=} is not a multiple of 8!"
+                )
+            if self.configs.batch_size_sgd % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"{self.configs.batch_size_sgd=} is not a multiple of 8!"
+                )
+            if self.configs.batch_size_known_poses % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"{self.configs.batch_size_known_poses=} is not a multiple of 8!"
+                )
+            if self.configs.hypervolume_dim % 8 != 0:
+                self.logger.warning(
+                    f"torch.amp mixed precision training is not optimized; "
+                    f"{self.configs.hypervolume_dim=} is not a multiple of 8!"
+                )
+
+            self.logger.info("Using Automatic Mixed Precision training via torch.amp")
+            self.scaler = torch.amp.GradScaler()       
 
     def train(self):
         self.logger.info("--- Training Starts Now ---")
@@ -690,7 +722,7 @@ class ModelTrainer:
             n_max_particles = self.n_particles_dataset
             data_generator = self.data_generator
 
-            # pre-training
+            # Pre-training
             if self.pretraining:
                 n_max_particles = self.n_particles_pretrain
                 self.logger.info(
@@ -715,7 +747,7 @@ class ModelTrainer:
 
                         poses_gt = utils.load_pkl(self.configs.pose)
                         if poses_gt[0].ndim == 3:
-                            # contains translations
+                            # Input data contains translations
                             rotmat_gt = torch.tensor(poses_gt[0]).float()
                             trans_gt = torch.tensor(poses_gt[1]).float()
                             trans_gt *= self.resolution
@@ -751,7 +783,7 @@ class ModelTrainer:
             else:
                 assert self.configs.use_gt_poses
 
-            # conformations
+            # Z-latent-space conformations
             if not self.pose_only:
                 if self.configs.use_conf_encoder:
                     self.optimized_modules.append('conf_encoder')
@@ -788,7 +820,7 @@ class ModelTrainer:
             end_time = time.time()
             self.cur_loss = 0
 
-            # inner loop
+            # Inner loop
             for batch_idx, in_dict in enumerate(data_generator):
                 self.batch_idx = batch_idx
 
@@ -803,18 +835,18 @@ class ModelTrainer:
                     break
 
             total_loss = self.cur_loss / self.current_epoch_particles_count
-            self.logger.info(f"# =====> SGD Epoch: {self.epoch} "
+            self.logger.info(f"# =====> {self.epoch_type()} Epoch: {self.epoch} "
                              f"finished in {dt.now() - te}; "
                              f"total loss = {format(total_loss, '.6f')}")
 
-            # image and pose summary
+            # Image and pose summary at the end of each epoch
             if will_make_summary:
                 self.make_heavy_summary()
                 self.save_latents()
                 self.save_volume()
                 self.save_model()
 
-            # update output mask -- epoch-based scaling
+            # Update output mask -- epoch-based scaling
             if (hasattr(self.output_mask, 'update_epoch')
                     and self.use_point_estimates):
                 self.output_mask.update_epoch(
@@ -831,12 +863,13 @@ class ModelTrainer:
 
         if ctf_params_local is not None:
             freqs = self.lattice.freqs2d.unsqueeze(0).expand(
-                batch_size, *self.lattice.freqs2d.shape) / ctf_params_local[:, 0].view(batch_size, 1, 1)
+                batch_size,
+                *self.lattice.freqs2d.shape
+            ) / ctf_params_local[:, 0].view(batch_size, 1, 1)
 
             ctf_local = ctf.compute_ctf(
                 freqs, *torch.split(ctf_params_local[:, 1:], 1, 1)).view(
                     batch_size, self.resolution, self.resolution)
-
         else:
             ctf_local = None
 
@@ -847,7 +880,7 @@ class ModelTrainer:
             torch.cuda.synchronize()
             self.run_times['dataloading'].append(time.time() - end_time)
 
-        # update output mask -- image-based scaling
+        # Update output mask -- image-based scaling
         if hasattr(self.output_mask, 'update') and self.is_in_pose_search_step:
             self.output_mask.update(self.total_particles_count)
 
@@ -874,7 +907,7 @@ class ModelTrainer:
         self.total_particles_count += batch_size
         self.current_epoch_particles_count += batch_size
 
-        # move to gpu
+        # Move to GPU
         if self.configs.verbose_time:
             torch.cuda.synchronize()
         start_time_gpu = time.time()
@@ -885,46 +918,74 @@ class ModelTrainer:
             torch.cuda.synchronize()
             self.run_times['to_gpu'].append(time.time() - start_time_gpu)
 
-        # zero grad
+        # Zero grad
         for key in self.optimized_modules:
             self.optimizers[key].zero_grad()
 
-        # forward pass
-        latent_variables_dict, y_pred, y_gt_processed = self.forward_pass(
-            in_dict)
+        # Forward pass
+        if self.scaler is not None:
+            with torch.amp.autocast('cuda'):
+                latent_variables_dict, y_pred, y_gt_processed = self.forward_pass(
+                    in_dict)
 
-        if self.n_prcs > 1:
-            self.model.module.is_in_pose_search_step = False
+                if self.n_prcs > 1:
+                    self.model.module.is_in_pose_search_step = False
+                else:
+                    self.model.is_in_pose_search_step = False
+                # Loss
+                if self.configs.verbose_time:
+                    torch.cuda.synchronize()
+                start_time_loss = time.time()
+                total_loss, all_losses = self.loss(y_pred, y_gt_processed,
+                                                latent_variables_dict)
+                if self.configs.verbose_time:
+                    torch.cuda.synchronize()
+                    self.run_times['loss'].append(time.time() - start_time_loss)
         else:
-            self.model.is_in_pose_search_step = False
+            latent_variables_dict, y_pred, y_gt_processed = self.forward_pass(
+                in_dict)
 
-        # loss
-        if self.configs.verbose_time:
-            torch.cuda.synchronize()
+            if self.n_prcs > 1:
+                self.model.module.is_in_pose_search_step = False
+            else:
+                self.model.is_in_pose_search_step = False
 
-        start_time_loss = time.time()
-        total_loss, all_losses = self.loss(y_pred, y_gt_processed,
-                                           latent_variables_dict)
+            # Loss
+            if self.configs.verbose_time:
+                torch.cuda.synchronize()
 
-        if self.configs.verbose_time:
-            torch.cuda.synchronize()
-            self.run_times['loss'].append(time.time() - start_time_loss)
+            start_time_loss = time.time()
+            total_loss, all_losses = self.loss(y_pred, y_gt_processed,
+                                            latent_variables_dict)
 
-        # backward pass
+            if self.configs.verbose_time:
+                torch.cuda.synchronize()
+                self.run_times['loss'].append(time.time() - start_time_loss)
+
+
+        # Backward pass
         if self.configs.verbose_time:
             torch.cuda.synchronize()
         start_time_backward = time.time()
-        total_loss.backward()
+        if self.scaler is not None:
+            self.scaler.scale(total_loss).backward()
+        else:
+            total_loss.backward()
         self.cur_loss += total_loss.item() * len(ind)
 
         for key in self.optimized_modules:
             if self.optimizer_types[key] == 'adam':
-                self.optimizers[key].step()
+                if self.scaler is not None:
+                    self.scaler.step(self.optimizers[key])
+                else:
+                    self.optimizers[key].step()
 
             elif self.optimizer_types[key] == 'lbfgs':
                 def closure():
                     self.optimizers[key].zero_grad()
-                    _latent_variables_dict, _y_pred, _y_gt_processed = self.forward_pass(in_dict)
+                    _latent_variables_dict, _y_pred, _y_gt_processed = (
+                        self.forward_pass(in_dict)
+                    )
                     _loss, _ = self.loss(
                         _y_pred, _y_gt_processed, _latent_variables_dict
                     )
@@ -934,6 +995,9 @@ class ModelTrainer:
 
             else:
                 raise NotImplementedError
+            
+        if self.scaler is not None:
+            self.scaler.update()
 
         if self.configs.verbose_time:
             torch.cuda.synchronize()
@@ -941,7 +1005,7 @@ class ModelTrainer:
             self.run_times['backward'].append(
                 time.time() - start_time_backward)
 
-        # detach
+        # Detach from GPU
         if self.log_latents:
             self.in_dict_last = in_dict
             self.y_pred_last = y_pred
@@ -950,13 +1014,15 @@ class ModelTrainer:
                 torch.cuda.synchronize()
 
             start_time_cpu = time.time()
-            rot_pred, trans_pred, conf_pred, logvar_pred = self.detach_latent_variables(latent_variables_dict)
+            rot_pred, trans_pred, conf_pred, logvar_pred = (
+                self.detach_latent_variables(latent_variables_dict)
+            )
 
             if self.configs.verbose_time:
                 torch.cuda.synchronize()
                 self.run_times['to_cpu'].append(time.time() - start_time_cpu)
 
-            # log
+            # Log
             if self.use_cuda:
                 ind = ind.cpu()
                 ind_tilt = ind_tilt.cpu()
@@ -977,7 +1043,7 @@ class ModelTrainer:
         else:
             self.run_times['to_cpu'].append(0.0)
 
-        # scalar summary
+        # Scalar summary
         if self.total_particles_count % self.configs.log_interval < batch_size:
             self.make_light_summary(all_losses)
 
@@ -1012,7 +1078,7 @@ class ModelTrainer:
             torch.cuda.synchronize()
             self.run_times['ctf'].append(time.time() - start_time_ctf)
 
-        # forward pass
+        # Forward pass
         if 'hypervolume' in self.optimized_modules:
             self.model.hypervolume.train()
         else:
@@ -1108,7 +1174,7 @@ class ModelTrainer:
         """
         all_losses = {}
 
-        # data loss
+        # Data loss
         data_loss = F.mse_loss(y_pred, y_gt)
         all_losses['Data Loss'] = data_loss.item()
         total_loss = data_loss
@@ -1135,12 +1201,13 @@ class ModelTrainer:
 
         return total_loss, all_losses
 
-    def make_heavy_summary(self):
+    def make_heavy_summary(self) -> None:
+        """Saves information about training progress at the end of an epoch."""
         summary.make_img_summary(self.writer, self.in_dict_last,
                                  self.y_pred_last, self.output_mask,
                                  self.epoch)
 
-        # conformation
+        # Z-latent-space conformations
         pca = None
         if self.configs.z_dim > 0:
             labels = None
@@ -1167,7 +1234,7 @@ class ModelTrainer:
                 palette_type=self.configs.color_palette
                 )
 
-        # pose
+        # Pose
         rotmat_gt = None
         trans_gt = None
         shift = (not self.configs.no_trans)
@@ -1181,7 +1248,7 @@ class ModelTrainer:
             poses_gt = utils.load_pkl(self.configs.pose)
 
             if poses_gt[0].ndim == 3:
-                # contains translations
+                # Input data contains translations
                 rotmat_gt = torch.tensor(poses_gt[0]).float()
                 trans_gt = torch.tensor(poses_gt[1]).float() * self.resolution
 
@@ -1210,7 +1277,8 @@ class ModelTrainer:
 
         return pca
 
-    def make_light_summary(self, all_losses):
+    def make_light_summary(self, all_losses: dict[str, float]) -> None:
+        """Creates a log describing progress within batches of a training epoch."""
         self.logger.info(
             f"# [Train Epoch: {self.epoch}/{self.num_epochs - 1}] "
             f"[{self.current_epoch_particles_count}"
@@ -1231,7 +1299,7 @@ class ModelTrainer:
                 self.logger.info(
                     f"{key} time: {np.mean(np.array(self.run_times[key]))}")
 
-    def save_latents(self):
+    def save_latents(self) -> None:
         """Write model's latent variables to file."""
         out_pose = os.path.join(self.outdir, f"pose.{self.epoch}.pkl")
 
@@ -1247,7 +1315,7 @@ class ModelTrainer:
             with open(out_conf, 'wb') as f:
                 pickle.dump(self.predicted_conf, f)
 
-    def save_volume(self):
+    def save_volume(self) -> None:
         """Write reconstructed volume to file."""
         out_mrc = os.path.join(self.outdir, f"reconstruct.{self.epoch}.mrc")
 
@@ -1275,9 +1343,8 @@ class ModelTrainer:
         vol = self.model.eval_volume(self.data.norm, zval=zval)
         mrc.write(out_mrc, vol.astype(np.float32))
 
-    # TODO: weights -> model and reconstruct -> volume for output labels?
-    def save_model(self):
-        """Write model state to file."""
+    def save_model(self) -> None:
+        """Write current PyTorch model state to file."""
         out_weights = os.path.join(self.outdir, f"weights.{self.epoch}.pkl")
 
         optimizers_state_dict = {}
@@ -1305,3 +1372,12 @@ class ModelTrainer:
                 'output_mask_radius'] = self.output_mask.current_radius
 
         torch.save(saved_objects, out_weights)
+
+    def epoch_type(self) -> str:
+        """Returns a label for the type of epoch currently being run."""
+        if self.pretraining:
+            return "Pretrain"
+        elif self.is_in_pose_search_step:
+            return "HPS"
+        else:
+            return "SGD"

@@ -1,4 +1,4 @@
-"""DRGN-AI neural network reconstruction experiment pipeline"""
+"""cryoDRGN-AI neural network reconstruction command line interfaces"""
 
 import argparse
 import os
@@ -172,7 +172,7 @@ def run_cryodrgn_ai() -> None:
     args.func(args)
 
 
-def setup_experiment(args) -> dict:
+def setup_experiment(args: argparse.Namespace) -> dict:
     """drgnai setup: create experiment resources"""
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -195,22 +195,16 @@ def setup_experiment(args) -> dict:
             "specified using --particles and --ctf from the command line!"
         )
 
-    if 'quick_config' in configs:
-        if 'capture_setup' in configs['quick_config']:
-            if configs['quick_config']['capture_setup'] == 'et':
-                raise NotImplementedError("DRGN-AI does not support ET inputs!")
-
-    # we don't take dataset as a command-line argument — should we?
     if hasattr(args, 'dataset') and args.dataset is not None:
         configs['dataset'] = args.dataset
     if hasattr(args, 'datadir') and args.datadir is not None:
         configs['datadir'] = args.datadir
 
-    # parse the additional configuration parameters
+    # Parse the additional configuration parameters
     if hasattr(args, 'cfgs') and args.cfgs is not None:
         configs = {**configs, **TrainingConfigurations.parse_cfg_keys(args.cfgs)}
 
-    # turn anything that looks like a relative path into an absolute path
+    # Turn anything that looks like a relative path into an absolute path
     for k in list(configs):
         if isinstance(configs[k], str):
             new_path = os.path.abspath(os.path.join(configs_file, configs[k]))
@@ -234,14 +228,14 @@ def setup_experiment(args) -> dict:
     else:
         data_paths = None
 
-    # handling different ways of specifying the input data, starting with a
+    # Handling different ways of specifying the input data, starting with a
     # file containing the data files
     if 'dataset' in configs and configs['dataset']:
         if os.path.exists(configs['dataset']):
             with open(configs['dataset'], 'r') as f:
                 paths = yaml.safe_load(f)
 
-            # resolve paths relative to the dataset file if they look relative
+            # Resolve paths relative to the dataset file if they look relative
             for k in list(paths):
                 if paths[k] and not os.path.isabs(paths[k]):
                     paths[k] = os.path.abspath(
@@ -258,11 +252,11 @@ def setup_experiment(args) -> dict:
                              "a .yaml catalogue of datasets using the "
                              "environment variable $DRGNAI_DATASETS!")
 
-        # you can also give the dataset as a label in the global dataset list
+        # You can also give the dataset as a label in the global dataset list
         else:
             paths = data_paths[configs['dataset']]
 
-    # one can also specify the dataset files themselves in the config file
+    # One can also specify the dataset files themselves in the config file
     elif 'particles' in configs and 'ctf' in configs:
         paths = {'particles': configs['particles'], 'ctf': configs['ctf']}
 
@@ -278,7 +272,7 @@ def setup_experiment(args) -> dict:
                          f"{paths_file} or the paths to a particles and "
                          "ctf settings file!")
 
-    # finally, these files can also be specified from the command line
+    # Finally, these files can also be specified from the command line
     else:
         paths = {'particles': args.particles, 'ctf': args.ctf}
 
@@ -292,8 +286,7 @@ def setup_experiment(args) -> dict:
         if isinstance(paths[k], str):
             paths[k] = os.path.abspath(paths[k])
 
-    # create the final configurations and test that they are valid before
-    # saving them to file
+    # Create the final configs and test that they are valid before saving them to file
     configs = {**configs, **paths}
     field_names = {fld.name for fld in TrainingConfigurations.fields()}
 
@@ -320,7 +313,7 @@ def setup_experiment(args) -> dict:
     return configs
 
 
-def train_experiment(args) -> None:
+def train_experiment(args: argparse.Namespace) -> None:
     """drgnai train: train model for estimating particle poses and volumes"""
 
     configs = setup_experiment(args)
@@ -332,7 +325,7 @@ def train_experiment(args) -> None:
         analyze_experiment(args)
 
 
-def analyze_experiment(args) -> None:
+def analyze_experiment(args: argparse.Namespace) -> None:
     """drgnai analyze: analyze, interpret, and visualize the trained model"""
 
     train_configs = ModelTrainer.load_configs(os.path.join(args.outdir, 'out'))
@@ -349,13 +342,13 @@ def analyze_experiment(args) -> None:
     analyzer.analyze()
 
 
-def filter_experiment(args) -> None:
+def filter_experiment(args: argparse.Namespace) -> None:
     """drgnai filter: interactive filtering of particles using model results"""
 
     interactive_filtering(args.outdir, args.epoch, args.kmeans, args.plot_inds)
 
 
-def test_package(args) -> None:
+def test_package(args: argparse.Namespace) -> None:
     """drgnai test: check if package was installed correctly"""
 
     utils._verbose = False
@@ -363,7 +356,7 @@ def test_package(args) -> None:
     trainer.train()
 
 
-def checksum_experiment(args) -> None:
+def checksum_experiment(args: argparse.Namespace) -> None:
     """drgnai checksum: print a hash value of the output of an experiment"""
 
     if 'out' in os.listdir(args.outdir):

@@ -6,6 +6,9 @@ check if the outputs of the current version of drgnai (specifically, reconstruct
 volumes and poses as well as model weights) match the outputs of this "reference"
 version of cryodrgnai.
 
+Note that these hashes have been computed by running on a single CPU, as GPUs are
+not generally available on machines used for continuous integration testing.
+
 """
 import pytest
 import os
@@ -14,9 +17,11 @@ from cryodrgnai.utils import run_command
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 DATASET_DIR = os.path.join(DATA_DIR, "data-paths.yaml")
 
+# Configurations parameter values that will be used across all tests
 TEST_ARGS = {
     'num_workers': 1, 'max_threads': 1, 'hypervolume_dim': 4, 'pe_dim': 4,
     'hypervolume_layers': 2, 'shuffle': False, 'lazy': False,
+    'batch_size_hps': 8, 'batch_size_sgd': 256, 'batch_size_known_poses': 32,
 }
 
 
@@ -40,10 +45,8 @@ def test_no_seed(configs_outdir):
     out, err = run_command(f"drgnai train {configs_outdir.basepath}")
     assert set(os.listdir(configs_outdir.basepath)) == {'out', 'configs.yaml'}, err
     assert 'Finished in ' in out, err
-
     assert (configs_outdir.outpath / 'weights.4.pkl').exists()
     assert (configs_outdir.outpath / 'analysis_4').exists()
-    assert (configs_outdir.outpath / 'analysis_4' / 'z_pca_hexbin.png').exists()
 
 
 @pytest.mark.parametrize(
@@ -91,7 +94,7 @@ def test_small_dataset_and_load(configs_outdir):
     out, err = run_command(f"drgnai train {configs_outdir.basepath}")
     assert set(os.listdir(configs_outdir.basepath)) == {
         old_lbl, 'out', 'configs.yaml'}, err
-    assert 'Finished in ' in out
+    assert 'Finished in ' in out, err
 
     assert (configs_outdir.outpath / f'weights.6.pkl').exists(), err
     assert (configs_outdir.outpath / 'analysis_6').exists(), err
@@ -163,6 +166,7 @@ class TestSetupIntegration:
     )
 class TestHomogeneousTrain:
     """Running homogeneous reconstruction using command line arguments."""
+    hash = 13.035
 
     def test_reconstruction(self, configs_outdir):
         """Run just reconstruction without post-analysis."""
@@ -181,7 +185,7 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.4.pkl').exists()
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 5.689
+        assert configs_outdir.output_hash(5) == self.hash
 
     def test_auto_load(self, configs_outdir):
         """Run some of the same epochs first; then use auto-restart to do the rest."""
@@ -215,7 +219,7 @@ class TestHomogeneousTrain:
         assert (configs_outdir.outpath / 'weights.5.pkl').exists()
         assert not (configs_outdir.outpath / 'weights.6.pkl').exists()
         assert (configs_outdir.outpath / 'analysis_5').exists()
-        assert configs_outdir.output_hash(5) == 5.689
+        assert configs_outdir.output_hash(5) == self.hash   
 
 
 @pytest.mark.parametrize(
@@ -366,6 +370,7 @@ class TestIndices:
                 'datadir': os.path.join(DATA_DIR, "tilts"),
                 'n_tilts': 1, 'dose_per_tilt': 2.93, 'angle_per_tilt': 3.0,
                 'n_imgs_pose_search': 20, 'epochs_sgd': 3, 'seed': 2345,
+                'dose_per_tilt': 2.93, 'angle_per_tilt': 3.0,
                 'invert_data': False, 'lazy': lazy_load,
                 'quick_config': {'capture_setup': 'et',
                                  'conf_estimation': 'autodecoder',

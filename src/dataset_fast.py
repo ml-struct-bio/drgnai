@@ -254,12 +254,14 @@ class TiltSeriesData(ImageDataset):
         self.Nt = self.N  # number of tilts
         self.N = len(particles)  # number of particles
         self.ctfscalefactor = np.asarray(s.df["_rlnCtfScalefactor"], dtype=np.float32)
+        ctfbfactor = np.asarray(s.df["_rlnCtfBfactor"], dtype=np.float32)
         self.tilt_numbers = np.zeros(self.Nt)
-        for ind in self.particles:
-            sort_idxs = self.ctfscalefactor[ind].argsort()
+        for i, ind in enumerate(self.particles):
+            sort_idxs = ctfbfactor[ind].argsort()
             ranks = np.empty_like(sort_idxs)
             ranks[sort_idxs[::-1]] = np.arange(len(ind))
             self.tilt_numbers[ind] = ranks
+            self.particles[i] = self.particles[i][ranks.argsort()]
         self.tilt_numbers = torch.tensor(self.tilt_numbers).to(self.device)
         logger.info(f"Loaded {self.Nt} tilts for {self.N} particles")
 
@@ -287,7 +289,7 @@ class TiltSeriesData(ImageDataset):
         tilt_scheme = []
         for i in range(ntilts):
             tilt_scheme.append(angle_per_tilt * np.ceil(i / 2.) * (((np.floor(i / 2.) + 1) % 2) * 2. - 1.))
-        tilts = [Rotation.from_euler('zyz', [tilt_axis_angle * np.pi / 180., t * np.pi / 180., 0.]) for t in tilt_scheme]
+        tilts = [Rotation.from_euler('ZYZ', [tilt_axis_angle * np.pi / 180., t * np.pi / 180., 0.]) for t in tilt_scheme]
         tilt_rots = [Rotation.as_matrix(t) for t in tilts]
         self.tilt_rots = torch.tensor(tilt_rots).float()
 
@@ -407,10 +409,7 @@ class TiltSeriesData(ImageDataset):
 
         freq_correction = torch.exp(-0.5 * cd_tile / ce_tile)
         freq_correction = torch.mul(freq_correction, oe_mask)
-        angle_correction = torch.cos(self.tilt_angles[tilt_index] * np.pi / 180)
-        ac_tile = torch.repeat_interleave(angle_correction, D * D).view(N, -1)
-
-        return torch.mul(freq_correction, ac_tile).float()
+        return freq_correction.float()
 
     def optimal_exposure(self, freq):
         return 2.51284 * self.critical_exposure(freq)

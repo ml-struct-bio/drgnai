@@ -7,6 +7,8 @@ import yaml
 import re
 import numpy as np
 
+# import matplotlib
+# matplotlib.use( 'tkagg' )
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import colors
@@ -68,7 +70,7 @@ def interactive_filtering(workdir: str, epoch: int, kmeans: int,
         workdir, 'out', f"pose.{epoch}.pkl"))
 
     ctf_params = utils.load_pkl(train_configs['ctf'])
-    all_indices = np.array(range(ctf_params.shape[0]))
+    all_indices = np.array(range(len(z)))
 
     if isinstance(train_configs['ind'], int):
         ctf_params = ctf_params[:train_configs['ind'], :]
@@ -113,12 +115,18 @@ def interactive_filtering(workdir: str, epoch: int, kmeans: int,
 
     kmeans_lbls = utils.load_pkl(os.path.join(kmeans_dir, "labels.pkl"))
 
-    plot_df = analysis.load_dataframe(
-        z=z, pc=pc, euler=RR.from_matrix(rot).as_euler('zyz', degrees=True),
-        trans=trans, labels=kmeans_lbls, umap=umap, df1=ctf_params[:, 2],
-        df2=ctf_params[:, 3], dfang=ctf_params[:, 4], phase=ctf_params[:, 8],
-        znorm=np.sum(z ** 2, axis=1) ** .5
-        )
+    if train_configs['subtomogram_averaging']:
+        plot_df = analysis.load_dataframe(
+            z=z, pc=pc, labels=kmeans_lbls, umap=umap,
+            znorm=np.sum(z ** 2, axis=1) ** .5
+            )
+    else:
+        plot_df = analysis.load_dataframe(
+            z=z, pc=pc, euler=RR.from_matrix(rot).as_euler('zyz', degrees=True),
+            trans=trans, labels=kmeans_lbls, umap=umap, df1=ctf_params[:, 2],
+            df2=ctf_params[:, 3], dfang=ctf_params[:, 4], phase=ctf_params[:, 8],
+            znorm=np.sum(z ** 2, axis=1) ** .5
+            )
 
     selector = SelectFromScatter(plot_df, pre_indices)
     input("Press Enter after making your selection...")
@@ -146,7 +154,7 @@ def interactive_filtering(workdir: str, epoch: int, kmeans: int,
             selected_full_path = filename + '.pkl'
 
             with open(selected_full_path, 'wb') as file:
-                pickle.dump(selected_indices, file)
+                pickle.dump(np.array(selected_indices), file)
             print(f"Selection saved to {selected_full_path}")
 
             # Saving the inverse selection
@@ -154,7 +162,7 @@ def interactive_filtering(workdir: str, epoch: int, kmeans: int,
             inverse_indices = np.setdiff1d(all_indices, selected_indices)
 
             with open(inverse_filename, 'wb') as file:
-                pickle.dump(inverse_indices, file)
+                pickle.dump(np.array(inverse_indices), file)
 
             print(f"Inverse selection saved to {inverse_filename}")
 

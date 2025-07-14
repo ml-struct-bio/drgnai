@@ -172,7 +172,8 @@ def compute_err(
         ctf_i=None,
         tilting_func=None,
         apply_tilting_scheme=False,
-        in_plane_in_image_space=True
+        in_plane_in_image_space=True,
+        n_tilts=1
 ) -> torch.Tensor:
     device = images.device
 
@@ -191,10 +192,9 @@ def compute_err(
             rot = rot.reshape(-1, 3, 3)  # [nq * ip, 3, 3]
             n_in_planes = len(angles_inplane)
 
-    n_tilts = 1
     if apply_tilting_scheme:
         rot = tilting_func(rot)
-        n_tilts = rot.shape[-3]
+        rot = rot[:, :n_tilts, ...]
         rot = rot.reshape(-1, 3, 3)  # [nq * ip * n_tilts, 3, 3]
     batch_size = torch.div(ctf_i.shape[0], n_tilts, rounding_mode='trunc')
 
@@ -263,7 +263,8 @@ def eval_grid(
         angles_inplane=None,
         ctf_i=None,
         tilting_func=None,
-        apply_tilting_scheme=False
+        apply_tilting_scheme=False,
+        n_tilts=1
 ):
     batch_size = images.shape[0]
     device = images.device
@@ -289,7 +290,8 @@ def eval_grid(
         l_current=l_current,
         ctf_i=ctf_i_masked,
         tilting_func=tilting_func,
-        apply_tilting_scheme=apply_tilting_scheme
+        apply_tilting_scheme=apply_tilting_scheme,
+        n_tilts=n_tilts
     )
     return err
 
@@ -453,6 +455,8 @@ def opt_theta_trans(
     """
     assert not model.hypervolume.training
 
+    batch_size = images.shape[0]
+    res = images.shape[-1]
     apply_tilting_scheme = False
     if images.ndim == 4:
         subtomogram_averaging = True
@@ -461,32 +465,26 @@ def opt_theta_trans(
         n_tilts_out = images.shape[1]
         if ps_params['average_over_tilts']:
             tilts = torch.mean(tilts, 1)  # [batch_size, D, D]
-            particles = tilts  # [batch_size, D, D]
             ctf_selected = ctf_i[:, 0] if ctf_i is not None else None
             gt_trans_selected = gt_trans[:, 0] if gt_trans is not None else None
             apply_tilting_scheme = False
             n_tilts = 1
         else:
-            particles = tilts[:, 0]  # [batch_size, D, D]
             n_tilts = tilts.shape[1]
             tilts = tilts.reshape(-1, *tilts.shape[-2:])  # [batch_size * n_tilts, D, D]
-            ctf_selected = ctf_i.reshape(-1, *ctf_i.shape[-2:])
-            gt_trans_selected = gt_trans.reshape(-1, 2) if gt_trans is not None else None  # [batch_size * n_tilts, 2]
+            ctf_selected = ctf_i[:, :ps_params['n_tilts_pose_search']].reshape(-1, *ctf_i.shape[-2:])
+            gt_trans_selected = gt_trans[:, :ps_params['n_tilts_pose_search']].reshape(-1, 2) if gt_trans is not None else None  # [batch_size * n_tilts, 2]
             apply_tilting_scheme = True
     else:
         tilts = images  # [batch_size, D, D]
-        particles = images  # [batch_size, D, D]
         subtomogram_averaging = False
         ctf_selected = ctf_i
         gt_trans_selected = gt_trans
         n_tilts = 1
+        n_tilts_out = 1
 
-    particles = to_tensor(particles)
     tilts = to_tensor(tilts)
     z = to_tensor(z)
-
-    batch_size = particles.shape[0]
-    res = particles.shape[1]
 
     device = model.coords.device
     coords = model.coords
@@ -515,13 +513,10 @@ def opt_theta_trans(
         angles_inplane=base_inplane,
         ctf_i=ctf_selected,
         tilting_func=ps_params['tilting_func'],
-        apply_tilting_scheme=apply_tilting_scheme
+        apply_tilting_scheme=apply_tilting_scheme,
+        n_tilts=n_tilts
     )
     keep_b, keep_t, keep_q = keep_matrix(loss, batch_size, ps_params['nkeptposes']).cpu()
-
-    new_init_poses = (torch.cat((keep_t, keep_q), dim=-1)
-                      .reshape(2, batch_size, ps_params['nkeptposes'])
-                      .permute(1, 2, 0))
 
     quat = so3_base_quat[keep_q]
     q_ind = so3_grid.get_base_ind(keep_q, ps_params['base_healpy'])
@@ -563,7 +558,8 @@ def opt_theta_trans(
             l_current=l_current,
             ctf_i=ctfb,
             tilting_func=ps_params['tilting_func'],
-            apply_tilting_scheme=apply_tilting_scheme
+            apply_tilting_scheme=apply_tilting_scheme,
+            n_tilts=n_tilts
         )
         nkeptposes = ps_params['nkeptposes'] if iter_ < ps_params['niter'] else 1
 
@@ -583,9 +579,9 @@ def opt_theta_trans(
     assert rot is not None
     best_rot = rot.reshape(-1, 8, 3, 3)[best_bn, best_q]
     if gt_trans_selected is not None:
-        best_trans = gt_trans_selected.clone().to(device)
+        best_trans = gt_trans.clone().reshape(-1, 2).to(device)
     elif ps_params['t_extent'] < 1e-6:
-        best_trans = torch.zeros(batch_size * n_tilts, 2).float().to(device)
+        best_trans = torch.zeros(batch_size * n_tilts_out, 2).float().to(device)
     else:
         best_trans = trans.to(device)
 
@@ -595,9 +591,6 @@ def opt_theta_trans(
         # which is a property of the dataset for now.
         # We should instead create a TiltingScheme object from the dataset,
         # make it an attribute of the model and pass it as an argument to the pose search function.
-        if not apply_tilting_scheme:
-            best_trans = best_trans[:, None].expand(-1, n_tilts_out, -1)
-        else:
-            best_trans = best_trans.reshape(-1, n_tilts_out, 2)
+        best_trans = best_trans.reshape(-1, n_tilts_out, 2)
 
-    return best_rot, best_trans, new_init_poses
+    return best_rot, best_trans

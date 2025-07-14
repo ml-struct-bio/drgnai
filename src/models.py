@@ -280,7 +280,7 @@ class DrgnAI(nn.Module):
         # use pose search
         elif self.is_in_pose_search_step:
             self.hypervolume.eval()
-            rot, trans, _ = pose_search.opt_theta_trans(
+            rot, trans = pose_search.opt_theta_trans(
                 self, in_dict['y'], self.lattice, self.ps_params, z=z, ctf_i=ctf,
                 gt_trans=in_dict['t'] if not self.no_trans and self.use_gt_trans else None,
                 trans_search_factor=self.trans_search_factor

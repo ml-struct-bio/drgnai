@@ -99,14 +99,14 @@ class ModelAnalyzer:
         self.train_configs = TrainingConfigurations(**train_config_vals['training'])
         self.traindir = traindir
 
-        # find how input data was normalized for training
+        # Find how input data was normalized for training
         self.out_cfgs = {k: v for k, v in train_config_vals.items() if k != 'training'}
         if 'data_norm_mean' not in self.out_cfgs:
             self.out_cfgs['data_norm_mean'] = 0.
         if 'data_norm_std' not in self.out_cfgs:
             self.out_cfgs['data_norm_std'] = 1.
 
-        # use last completed epoch if no epoch given
+        # Use last completed epoch if no epoch given specified by the user
         if self.configs.epoch == -1:
             self.epoch = self.get_last_cached_epoch(traindir)
         else:
@@ -122,11 +122,11 @@ class ModelAnalyzer:
         self.device = torch.device('cuda:0' if self.use_cuda else 'cpu')
         self.logger.info(f"Use cuda {self.use_cuda}")
 
-        # load model
+        # Load reconstruction model from the saved checkpoint file
         checkpoint_path = os.path.join(self.traindir,
                                        f"weights.{self.epoch}.pkl")
         self.logger.info(f"Loading model from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, weights_only=False)
 
         hypervolume_params = checkpoint['hypervolume_params']
         hypervolume = models.HyperVolume(**hypervolume_params)
@@ -145,7 +145,7 @@ class ModelAnalyzer:
             data_norm=(self.out_cfgs['data_norm_mean'], self.out_cfgs['data_norm_std'])
             )
 
-        # load the conformations
+        # Load the conformations if the using a heterogeneous reconstruction model
         if self.train_configs.z_dim > 0:
             self.z = utils.load_pkl(
                 os.path.join(self.traindir, f"conf.{self.epoch}.pkl"))
@@ -154,7 +154,7 @@ class ModelAnalyzer:
             self.z = None
             self.n_samples = None
 
-        # create an output directory for these analyses
+        # Create an output directory for these analyses
         self.outdir = os.path.join(self.traindir, f"analysis_{self.epoch}")
         os.makedirs(self.outdir, exist_ok=True)
 
@@ -176,8 +176,8 @@ class ModelAnalyzer:
         else:
             self.analyze_zN()
 
-        # create Jupyter notebooks for data analysis and visualization by
-        # copying them over from the template directory
+        # Create Jupyter notebooks for data analysis and visualization by
+        # copying them over from the template codebase directory
         if self.train_configs.quick_config['capture_setup'] == 'spa':
             out_ipynb = os.path.join(self.outdir, "cryoDRGN-analysis.ipynb")
 
@@ -189,7 +189,7 @@ class ModelAnalyzer:
             else:
                 self.logger.info(f"{out_ipynb} already exists. Skipping")
 
-            # edit the notebook with the epoch to analyze
+            # Edit the notebook with the epoch to analyze
             with open(out_ipynb, 'r') as f:
                 filter_ntbook = nbformat.read(
                     f, as_version=nbformat.NO_CONVERT)
@@ -300,7 +300,7 @@ class ModelAnalyzer:
                                    f"pc{i + 1}_{self.configs.n_per_pc}")
             self.vg.gen_volumes(volpath, z_pc)
 
-        # kmeans clustering
+        # Kmeans clustering
         self.logger.info('K-means clustering...')
         k = min(self.configs.ksample, self.n_samples)
         if self.n_samples < self.configs.ksample:
