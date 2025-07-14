@@ -12,20 +12,18 @@ provided below.
 
 Note: We are currently merging this standalone cryoDRGN-AI github repository into the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software package. CryoDRGN-AI will be available in the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software's next major release. Please check back for updates.
 
+  - July 2025: Version 0.3.3-beta release with support for tilt-series reconstruction and mixed precision training.
   - June 2025: CryoDRGN-AI is now published in [Nature Methods](https://www.nature.com/articles/s41592-025-02720-4)!
   - June 2025: Version 0.3.2-beta release with usability improvements.
   - April 2025: Updated name from DRGN-AI to cryoDRGN-AI in our [preprint](https://www.biorxiv.org/content/10.1101/2024.05.30.596729v3).
   - Dec 2024: Ab initio reconstruction of cryo-ET subtomograms is now described in our preprint.
 
-### New in Version 0.3.2-beta ###
+### New in Version 0.3.3-beta ###
 
- - Add `invert_data` configuration parameter for easier handling of datasets like 50S (EMPIAR-10076)
- - Add `data_norm_mean` and `data_norm_std` configuration parameters for manual override of image dataset normalization
- - Updating default behavior to use only one GPU no matter how many are available; add `--multigpu` to `drgnai train`
-   as well as `multigpu` configuration parameter to manually activate multi-GPU training
- - Using volumes reconstructed at the image closest to the centroid of all images in the latent space at each epoch
-   instead of the first image in the dataset for heterogeneous reconstruction
- - Fixing loss logging during pretraining; better logs for how many GPUs are being used
+ - Add support for tilt-series reconstruction (`capture_setup=et`)
+   - Fix configuration parameter validation for `dose_per_tilt`, `angle_per_tilt`, and `average_over_tilts`
+   - Implement `n_tilts_pose_search` for control over number of tilt images per particle used in pose search
+ - Add support for automatic mixed-precision training implemented through [`torch.cuda.amp`](https://docs.pytorch.org/docs/stable/amp.html)
 
 ## Installation ##
 
@@ -128,7 +126,7 @@ output directory and 6565 is an arbitrary port number.
 The behavior of the algorithm can be modified by passing different values to `drgnai setup` at the beginning of the
 experiment. However, only the most important parameters are available through this interface:
 
- - `--capture-setup` “spa” for single-particle analysis (default)
+ - `--capture-setup` “spa” for single-particle analysis (default) or "et" for tilt-series
  - `--reconstruction-type` “het” for heterogeneous or “homo” for homogeneous (default)
  - `--pose-estimation` “abinit” for no initialization (default), “refine” to refine provided poses by gradient
                        descent or “fixed” to use provided poses without refinement
@@ -162,6 +160,16 @@ is run. For a full overview of how to configure the parameters used in the CryoD
 
 
 ## Previous versions ##
+
+### Version 0.3.2-beta ###
+
+ - Add `invert_data` configuration parameter for easier handling of datasets like 50S (EMPIAR-10076)
+ - Add `data_norm_mean` and `data_norm_std` configuration parameters for manual override of image dataset normalization
+ - Updating default behavior to use only one GPU no matter how many are available; add `--multigpu` to `drgnai train`
+   as well as `multigpu` configuration parameter to manually activate multi-GPU training
+ - Using volumes reconstructed at the image closest to the centroid of all images in the latent space at each epoch
+   instead of the first image in the dataset for heterogeneous reconstruction
+ - Fixing loss logging during pretraining; better logs for how many GPUs are being used
 
 ### Version 0.3.1-beta ###
 
