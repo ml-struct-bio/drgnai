@@ -10,7 +10,7 @@ from . import utils
 logger = logging.getLogger(__name__)
 
 
-def compute_ctf(freqs, dfu, dfv, defocus_angle, volt, cs, w, phase_shift=0, b_factor=None):
+def compute_ctf(freqs, dfu, dfv, defocus_angle, volt, cs, w, phase_shift=0, scale_factor=None, b_factor=None):
     """
     Compute the 2D CTF
 
@@ -41,6 +41,8 @@ def compute_ctf(freqs, dfu, dfv, defocus_angle, volt, cs, w, phase_shift=0, b_fa
     df = .5 * (dfu + dfv + (dfu - dfv) * torch.cos(2 * (ang - defocus_angle)))
     gamma = 2 * np.pi * (-.5 * df * lam * s2 + .25 * cs * lam ** 3 * s2 ** 2) - phase_shift
     ctf = (1 - w ** 2) ** .5 * torch.sin(gamma) - w * torch.cos(gamma)
+    if scale_factor is not None:
+        ctf *= scale_factor
     if b_factor is not None:
         ctf *= torch.exp(-b_factor / 4 * s2)
     return ctf

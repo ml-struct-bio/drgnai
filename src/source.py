@@ -324,7 +324,7 @@ class _MRCDataFrameSource(ImageSource):
 
         if datadir:
             self.df["__mrc_filepath"] = self.df["__mrc_filename"].apply(
-                lambda filename: os.path.join(datadir, os.path.basename(filename))
+                lambda filename: os.path.join(datadir, filename)
             )
         else:
             self.df["__mrc_filepath"] = self.df["__mrc_filename"]
