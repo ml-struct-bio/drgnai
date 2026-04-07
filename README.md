@@ -10,13 +10,15 @@ provided below.
 
 ## Latest News! ##
 
-Note: We are currently merging this standalone cryoDRGN-AI github repository into the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software package. CryoDRGN-AI will be available in the [cryodrgn](https://github.com/ml-struct-bio/cryodrgn) software's next major release. Please check back for updates.
+**CryoDRGN-AI is now available as part of the [primary cryoDRGN codebase](https://github.com/ml-struct-bio/cryodrgn) through the 
+`cryodrgn abinit` command implemented as of v4.2.0. Please visit the cryoDRGN repository for more details!** This repository is 
+now deprecated and will not be supported any longer.
 
-  - July 2025: Version 0.3.3-beta release with support for tilt-series reconstruction and mixed precision training.
-  - June 2025: CryoDRGN-AI is now published in [Nature Methods](https://www.nature.com/articles/s41592-025-02720-4)!
-  - June 2025: Version 0.3.2-beta release with usability improvements.
-  - April 2025: Updated name from DRGN-AI to cryoDRGN-AI in our [preprint](https://www.biorxiv.org/content/10.1101/2024.05.30.596729v3).
-  - Dec 2024: Ab initio reconstruction of cryo-ET subtomograms is now described in our preprint.
+  - **July 2025:** Version 0.3.3-beta release with support for tilt-series reconstruction and mixed precision training.
+  - **June 2025:** CryoDRGN-AI is now published in [Nature Methods](https://www.nature.com/articles/s41592-025-02720-4)!
+  - **June 2025:** Version 0.3.2-beta release with usability improvements.
+  - **April 2025:** Updated name from DRGN-AI to cryoDRGN-AI in our [preprint](https://www.biorxiv.org/content/10.1101/2024.05.30.596729v3).
+  - **Dec 2024:** *Ab initio* reconstruction of cryo-ET subtomograms is now described in our preprint.
 
 ### New in Version 0.3.3-beta ###
 
