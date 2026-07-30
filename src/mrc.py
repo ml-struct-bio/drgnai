@@ -124,7 +124,7 @@ class LazyImage:
     def get(self):
         with open(self.fname) as f:
             f.seek(self.offset)
-            image = np.fromfile(f, dtype=self.dtype, count=np.product(self.shape)).reshape(self.shape)
+            image = np.fromfile(f, dtype=self.dtype, count=np.prod(self.shape)).reshape(self.shape)
         return image
 
 

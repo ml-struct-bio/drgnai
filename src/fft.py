@@ -41,7 +41,7 @@ def ihtn_center(vol):
     vol = np.fft.ifftshift(vol)
     vol = np.fft.fftn(vol)
     vol = np.fft.fftshift(vol)
-    vol /= np.product(vol.shape)
+    vol /= np.prod(vol.shape)
     return vol.real - vol.imag
 
 
